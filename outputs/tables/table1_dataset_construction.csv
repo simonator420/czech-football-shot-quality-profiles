@@ -1,0 +1,12 @@
+Step,Matches,Shots,Note
+"Matches scraped, seasons 2022/23-2024/25",866,21644,Season 2025/26 excluded from the study by design
+Finished matches,841,21644,Postponed/cancelled fixtures removed
+Matches with shot-map data,836,21644,5 finished matches had no shot map available
+Czech First League matches (regular season + championship/relegation group),826,21373,10 relegation/promotion play-off matches vs second-tier opposition excluded from the shot sample (retained as calendar load)
+Duplicate shot records removed,826,21373,0 duplicates
+Penalty shoot-out attempts removed,826,21373,0 shoot-out attempts
+Own goals removed,826,21311,62 own goals (not attempts on the opponent's goal)
+Shots with valid spatial coordinates,826,21311,0 shots without coordinates
+Coordinates within the normalised pitch grid,826,21311,0 shots with out-of-range coordinates
+Shots with valid team and player identifiers,826,21311,0 shots without team/player link
+Final analytical shot sample,826,21311,0 shots with missing shot type/body part/situation

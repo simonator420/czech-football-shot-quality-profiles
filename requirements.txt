@@ -1,0 +1,13 @@
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+scikit-learn>=1.4
+statsmodels>=0.14
+matplotlib>=3.7
+xgboost>=2.0
+catboost>=1.2
+shap>=0.45
+umap-learn>=0.5
+pymysql>=1.1
+pyarrow>=14
+joblib>=1.3
