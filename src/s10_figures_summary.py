@@ -127,6 +127,10 @@ def write_summary(shots: pd.DataFrame) -> None:
     t5b = _read("table5b_profile_repeatability")
     t6 = _read("table6_load_effects")
     tS3 = _read("tableS3_early_season_regression")
+    t3c = _read("table3c_temporal_validation")
+    t8 = _read("table8_split_half_reliability")
+    t8b = _read("table8b_split_half_differences")
+    t9 = _read("table9_practical_validity")
 
     lines: list[str] = []
     add = lines.append
@@ -145,6 +149,8 @@ def write_summary(shots: pd.DataFrame) -> None:
             f"{row['Shots per match']} shots per match.")
     add("- Chronological validation: train "
         f"{' + '.join(TRAIN_SEASONS)}, held-out test {TEST_SEASONS[0]}.")
+    add("- Early-window profile estimates require at least 20 shots in the window; "
+        "this avoids treating very small early samples as stable profile estimates.")
 
     add("\n## Shot-quality model (RQ6, proposal 5.3)\n")
     if t3 is not None:
@@ -157,6 +163,11 @@ def write_summary(shots: pd.DataFrame) -> None:
             f"overall goal-rate baseline (log loss {base['Log loss']}).")
         add(f"- Calibration slope {main_row['Calibration slope']}, "
             f"intercept {main_row['Calibration intercept']}, ECE {main_row['ECE']}.")
+    if t3c is not None:
+        vals = []
+        for _, r in t3c.iterrows():
+            vals.append(f"{r['Model']}: AUC {r['AUC']}, calibration intercept {r['Calibration intercept']}")
+        add("- Temporal validation: " + "; ".join(vals) + ".")
     add("- Out-of-fold shot quality (5-fold, grouped by match) supplies the "
         "shot-quality value used in every downstream analysis, so no team is "
         "profiled with predictions from its own matches.")
@@ -167,8 +178,9 @@ def write_summary(shots: pd.DataFrame) -> None:
         "share 5.2x, with **non-overlapping monthly ranges** before and after "
         "(Welch p = 5e-09 and 5e-08).")
     add("- Consequence: profile features are standardised **within season**, and "
-        "the shot-quality model's calibration drift on the test season is "
-        "re-checked without the `situation` predictor (Table 7).")
+        "the shot-quality and profile-construction workflow is re-run without "
+        "the `situation` predictor or situation-derived profile features "
+        "(Table 7 and Table 7b).")
 
     add("\n## Hypothesis 1 - discrete attacking-profile types\n")
     verdict = "**NOT SUPPORTED**"
@@ -214,6 +226,19 @@ def write_summary(shots: pd.DataFrame) -> None:
         add("- Chance creation persists across seasons; finishing does not, which "
             "is the pattern hypothesis 5 predicts and the reason finishing should "
             "not be read as a stable team trait.")
+    if t8 is not None:
+        xg = t8[t8["Feature"] == "xg_per_match"].iloc[0]
+        gmxg = t8[t8["Feature"] == "goals_minus_xg_per_match"].iloc[0]
+        add(f"- Split-half reliability is descriptively consistent with the "
+            f"process/finishing distinction: xG per match first-half vs "
+            f"second-half r = **{xg['Pearson r']}** "
+            f"{xg['Pearson 95% bootstrap CI']}, while goals-minus-xG r = "
+            f"**{gmxg['Pearson r']}** {gmxg['Pearson 95% bootstrap CI']}.")
+    if t8b is not None and len(t8b):
+        for _, r in t8b.iterrows():
+            add(f"- Paired team-cluster bootstrap difference in split-half r "
+                f"({r['Comparison']}): {r['Pearson r difference']} "
+                f"{r['95% paired cluster bootstrap CI']}.")
 
     add("\n## Hypothesis 3 - competitive load and shot quality\n")
     if t6 is not None:
@@ -230,17 +255,59 @@ def write_summary(shots: pd.DataFrame) -> None:
 
     add("\n## RQ3 - early-season prediction\n")
     if tS3 is not None:
-        best = tS3[tS3["Model"] != "Mean baseline"].sort_values(
-            "Holdout R2 (2024/25)", ascending=False
-        )
-        if len(best):
-            b = best.iloc[0]
-            add(f"- Best continuous prediction: {b['Model']} on {b['Window'].lower()} "
-                f"predicting {b['Target']}, held-out R2 = **{b['Holdout R2 (2024/25)']}** "
-                f"(repeated-CV R2 {b['Repeated-CV R2 (mean)']}).")
-    add("- Cluster-membership classification is reported but is underpowered by "
-        "construction (32 training and 16 test team-seasons) and is interpreted "
-        "against a majority-class baseline.")
+        r2_col = "Holdout R2 (2024/25 remainder)"
+        primary = tS3[
+            (tS3["Model"] == "Ridge regression")
+            & (tS3["Window"] == "First 10 matches")
+            & (tS3["Target"] == "xg per match")
+        ]
+        baseline = tS3[
+            (tS3["Model"] == "Naive early-value baseline")
+            & (tS3["Window"] == "First 10 matches")
+            & (tS3["Target"] == "xg per match")
+        ]
+        if len(primary):
+            b = primary.iloc[0]
+            add(f"- Primary model specification: ridge regression. For the pre-specified "
+                f"first-10-match window predicting remainder-season xG per match, "
+                f"R2 = **{b[r2_col]}**, MAE {b['Holdout MAE']}, Spearman rho "
+                f"{b['Holdout Spearman rho']}.")
+        if len(baseline):
+            b = baseline.iloc[0]
+            add(f"- Naive early-value baseline for the same target/window: "
+                f"R2 = **{b[r2_col]}**, MAE {b['Holdout MAE']}, Spearman rho "
+                f"{b['Holdout Spearman rho']}. Random forests are reported only as "
+                "sensitivity comparisons.")
+        stab_note = tS3[
+            (tS3["Model"] == "Ridge regression")
+            & (tS3["Target"] == "chance creation axis")
+            & (tS3["Window"] == "First 10 matches")
+        ]
+        if len(stab_note):
+            b = stab_note.iloc[0]
+            add(f"- For the first-10-match chance-creation axis, ridge R2 = "
+                f"**{b[r2_col]}** against the non-overlapping season remainder.")
+    add("- All early-season prediction targets exclude the matches used as predictors, "
+        "so the estimates are not inflated by part-whole overlap.")
+    add("- For the 2024/25 holdout, shot-quality aggregates use the train-only "
+        "`shot_quality_holdout` predictions and profile-axis PCA/scaling is fit "
+        "only on 2022/23-2023/24.")
+
+    add("\n## Practical validity\n")
+    if t9 is not None:
+        p = t9[(t9["Outcome"] == "points_per_match")
+               & (t9["Term"] == "process_chance_creation_axis")]
+        gd = t9[(t9["Outcome"] == "goal_difference_per_match")
+                & (t9["Term"] == "process_chance_creation_axis")]
+        if len(p) and len(gd):
+            p, gd = p.iloc[0], gd.iloc[0]
+            add(f"- Exploratory concurrent associations: process-only chance creation "
+                f"is associated with points per match (beta {p['Estimate']}, "
+                f"team-cluster bootstrap CI {p['Team-cluster bootstrap 95% CI']}, "
+                f"p {p['Team-cluster bootstrap p']}) and goal difference per match "
+                f"(beta {gd['Estimate']}, CI {gd['Team-cluster bootstrap 95% CI']}, "
+                f"p {gd['Team-cluster bootstrap p']}) after adjusting for finishing "
+                "and season.")
 
     add("\n## Files\n")
     add("| Output | Content |")
@@ -251,6 +318,7 @@ def write_summary(shots: pd.DataFrame) -> None:
         ("table2b_taxonomy_continuity", "Cross-season continuity of the event taxonomy"),
         ("table3_shot_quality_models", "Shot-quality model comparison and calibration"),
         ("table3b_shot_quality_by_subset", "Model performance by shot subset"),
+        ("table3c_temporal_validation", "Temporal development and final holdout shot-quality validation"),
         ("table4_cluster_characteristics", "Cluster centroids, stability and representative teams"),
         ("table4b_cluster_selection_metrics", "Validity indices for all 36 candidate solutions"),
         ("table4f_gap_statistic", "Gap statistic, including k = 1"),
@@ -259,6 +327,13 @@ def write_summary(shots: pd.DataFrame) -> None:
         ("table5c_trajectory_typology", "Multi-season trajectory classification"),
         ("table6_load_effects", "Competitive-load effects on shot quality and selection"),
         ("table7_robustness", "All sensitivity and robustness analyses"),
+        ("table7b_no_situation_profile_comparison", "Team-season profile comparison after rebuilding the no-situation workflow"),
+        ("table8_split_half_reliability", "Split-half reliability of process and finishing indicators"),
+        ("table8b_split_half_differences", "Bootstrap contrasts between chance-creation and finishing reliability"),
+        ("table9_practical_validity", "Process-only chance creation and team results"),
+        ("table9b_opponent_adjusted_profiles", "Opponent-adjusted attacking ratings"),
+        ("tableS2_stabilisation_curves", "Non-overlapping early-versus-remainder stabilisation curves"),
+        ("tableS3_early_season_regression", "Early-season prediction of remainder-season profiles"),
     ):
         if (TABLES / f"{name}.csv").exists():
             add(f"| `tables/{name}.csv` | {desc} |")
@@ -272,6 +347,9 @@ def write_summary(shots: pd.DataFrame) -> None:
         ("figure7_shot_quality_by_rest", "Shot quality by rest interval and congestion"),
         ("figure8_late_game_trends", "Shot quality across the match"),
         ("figure9_team_resilience", "Team resilience under congestion"),
+        ("figure10_split_half_reliability", "Split-half reliability of chance creation and finishing"),
+        ("figure11_practical_validity", "Process-only chance creation and team results"),
+        ("figureS1_stabilisation", "Early-versus-remainder stabilisation curves"),
     ):
         if (OUT / "figures" / f"{name}.pdf").exists():
             add(f"| `figures/{name}.pdf` | {desc} |")

@@ -11,6 +11,8 @@ catboost_info/
 data/processed_release/*.parquet
 !data/processed_release/matches.parquet
 !data/processed_release/shots_clean.parquet
+!data/processed_release/shots_features.parquet
+!data/processed_release/team_match_load.parquet
 !data/processed_release/fixtures.parquet
 
 outputs/**

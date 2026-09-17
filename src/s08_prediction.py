@@ -1,64 +1,52 @@
-"""Step 8 - Early-season profile prediction (proposal 5.9).
+"""Step 8 - Early-season prediction without part-whole overlap.
 
-Research question 3 asks whether early-season attacking behaviour predicts the
-full-season profile, and which event-level features stabilise earliest.
-
-Three analyses answer it, in increasing order of statistical power:
-
-  1. *Stabilisation curves* - for each profile feature, the split-half
-     correlation between matches 1..m and matches m+1..end, as a function of m.
-     The two windows are disjoint, so the curve is not inflated by part-whole
-     overlap. Computed on all 48 team-seasons and needs no model.
-  2. *Continuous profile prediction* - regression of the full-season
-     chance-creation and finishing axes on early-season features. With 48
-     team-seasons this is far better powered than classification and is treated
-     as the primary predictive result.
-  3. *Cluster-membership classification* - the analysis as literally specified
-     in the proposal. With 32 training and 16 test team-seasons it is
-     underpowered by construction, so it is reported against a majority-class
-     baseline with bootstrap intervals and interpreted with corresponding
-     caution.
+Research question 3 asks whether early-season attacking behaviour has practical
+predictive value. The target must therefore exclude the matches used to build
+the predictors: first-5, first-10 and first-30%-of-season windows are used to
+predict only the remainder of the same season.
 
 Produces
     tables/tableS2_stabilisation_curves.csv
     tables/tableS3_early_season_regression.csv
-    tables/tableS4_early_season_classification.csv
     figures/figureS1_stabilisation.pdf
     figures/figureS2_early_season_shap.pdf
 """
 
 from __future__ import annotations
 
+import copy
 import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn.dummy import DummyClassifier, DummyRegressor
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LogisticRegression, RidgeCV
-from sklearn.metrics import (
-    balanced_accuracy_score,
-    f1_score,
-    mean_absolute_error,
-    r2_score,
-)
-from sklearn.model_selection import RepeatedStratifiedKFold, RepeatedKFold
+from scipy.stats import spearmanr
+from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import RidgeCV
+from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 import plotstyle
 from common import RANDOM_STATE, TEST_SEASONS, TRAIN_SEASONS, header, load_frame, save_table
 from s04_profiles import PROFILE_FEATURES, _core_aggregates
+from s05_clustering import standardise_within_season
 
 warnings.filterwarnings("ignore")
 
 WINDOWS = {"First 5 matches": 5, "First 10 matches": 10, "First 30% of season": None}
+STABILISATION_WINDOWS = [3, 5, 7, 10, 12, 15, 18, 20]
 AXES = ["chance_creation_axis", "finishing_axis"]
+TARGETS = AXES + ["xg_per_match", "goals_minus_xg_per_match"]
 
-#: Early-season descriptors offered to the models.
 EARLY_FEATURES = [
+    "chance_creation_axis",
+    "finishing_axis",
     "mean_shot_quality",
+    "median_shot_quality",
+    "xg_per_match",
     "shots_per_match",
+    "goals_minus_xg_per_match",
     "high_quality_share",
     "low_quality_share",
     "mean_distance_m",
@@ -73,206 +61,273 @@ EARLY_FEATURES = [
     "goal_rate",
 ]
 
+STABILISATION_FEATURES = [
+    "chance_creation_axis",
+    "finishing_axis",
+    "xg_per_match",
+    "shots_per_match",
+    "mean_shot_quality",
+    "goals_minus_xg_per_match",
+    "on_target_rate",
+]
+
+
+def fit_axis_reference(ts: pd.DataFrame) -> dict:
+    """Fit profile axes from training seasons only.
+
+    Training seasons keep their within-season scaling. Unseen seasons use the
+    pooled training-season mean and SD so the transformation does not depend on
+    future full-season information from the holdout year.
+    """
+    train = ts[ts["season_name"].isin(TRAIN_SEASONS)].copy()
+    Z = standardise_within_season(train, PROFILE_FEATURES)
+    pca = PCA().fit(Z)
+    load1 = pd.Series(pca.components_[0], index=PROFILE_FEATURES)
+    load2 = pd.Series(pca.components_[1], index=PROFILE_FEATURES)
+    sign1 = np.sign(load1["mean_shot_quality"]) or 1.0
+    sign2 = np.sign(load2["goals_minus_xg_per_match"]) or 1.0
+    by_season = {}
+    for season, g in train.groupby("season_name"):
+        block = g[PROFILE_FEATURES].to_numpy(dtype=float)
+        mu = block.mean(axis=0)
+        sd = block.std(axis=0, ddof=0)
+        sd[sd == 0] = 1.0
+        by_season[season] = (mu, sd)
+    block = train[PROFILE_FEATURES].to_numpy(dtype=float)
+    pooled_mu = block.mean(axis=0)
+    pooled_sd = block.std(axis=0, ddof=0)
+    pooled_sd[pooled_sd == 0] = 1.0
+    return {
+        "pca": pca,
+        "signs": np.array([sign1, sign2]),
+        "by_season": by_season,
+        "fallback": (pooled_mu, pooled_sd),
+    }
+
+
+def add_profile_axes(df: pd.DataFrame, ref: dict) -> pd.DataFrame:
+    out = df.copy()
+    scores = np.full((len(out), 2), np.nan)
+    for season, idx in out.groupby("season_name").groups.items():
+        mu, sd = ref["by_season"].get(season, ref["fallback"])
+        block = out.loc[idx, PROFILE_FEATURES].to_numpy(dtype=float)
+        z = (block - mu) / sd
+        scores[out.index.get_indexer(idx)] = ref["pca"].transform(z)[:, :2] * ref["signs"]
+    out["chance_creation_axis"] = scores[:, 0]
+    out["finishing_axis"] = scores[:, 1]
+    return out
+
+
+def use_temporal_holdout_shot_quality(shots: pd.DataFrame) -> pd.DataFrame:
+    """Use train-only shot-quality predictions for the held-out test season."""
+    out = shots.copy()
+    test = out["season_name"].isin(TEST_SEASONS) & out["shot_quality_holdout"].notna()
+    out.loc[test, "shot_quality"] = out.loc[test, "shot_quality_holdout"]
+    return out
+
 
 def early_window_features(
-    shots: pd.DataFrame, tm: pd.DataFrame, n_matches, complement: bool = False
+    shots: pd.DataFrame,
+    tm: pd.DataFrame,
+    n_matches,
+    axis_ref: dict,
+    complement: bool = False,
 ) -> pd.DataFrame:
-    """Aggregate a team-season's first `n_matches` matches into a profile.
-
-    With ``complement=True`` the *remaining* matches of the season are
-    aggregated instead. That is what the stabilisation curves need: correlating
-    the first m matches against the full season would share those same matches
-    on both sides and inflate the correlation by part-whole overlap.
-    """
     rows = []
     for (team_id, season), g in tm.groupby(["team_id", "season_name"]):
-        total = g["match_number"].max()
-        cutoff = int(np.ceil(0.30 * total)) if n_matches is None else n_matches
+        total = int(g["match_number"].max())
+        cutoff = int(np.ceil(0.30 * total)) if n_matches is None else int(n_matches)
         sel = g[g["match_number"] > cutoff] if complement else g[g["match_number"] <= cutoff]
         if sel.empty:
             continue
-        sub = shots[
-            shots["match_id"].isin(sel["match_id"]) & (shots["team_id"] == team_id)
-        ]
+        sub = shots[shots["match_id"].isin(sel["match_id"]) & (shots["team_id"] == team_id)]
         if len(sub) < 20:
             continue
-        rec = {"team_id": team_id, "season_name": season, "window_matches": cutoff}
+        rec = {
+            "team_id": team_id,
+            "season_name": season,
+            "team_name": g["team_name"].iloc[0],
+            "window_matches": cutoff,
+            "matches_in_window": len(sel),
+        }
         agg = _core_aggregates(sub)
         rec.update(agg)
         rec["shots_per_match"] = agg["shots"] / len(sel)
         rec["xg_per_match"] = agg["total_xg"] / len(sel)
         rec["goals_minus_xg_per_match"] = (agg["goals"] - agg["total_xg"]) / len(sel)
         rows.append(rec)
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    return add_profile_axes(out, axis_ref) if not out.empty else out
 
 
-def stabilisation_curves(shots: pd.DataFrame, tm: pd.DataFrame, ts: pd.DataFrame) -> pd.DataFrame:
-    """How early each feature settles, measured on disjoint halves of a season.
+def window_exclusions(shots: pd.DataFrame, tm: pd.DataFrame, n_matches) -> tuple[int, str]:
+    """Explain team-seasons dropped by the >=20 shot rule for a window."""
+    notes = []
+    for (team_id, season), g in tm.groupby(["team_id", "season_name"]):
+        total = int(g["match_number"].max())
+        cutoff = int(np.ceil(0.30 * total)) if n_matches is None else int(n_matches)
+        early = g[g["match_number"] <= cutoff]
+        rest = g[g["match_number"] > cutoff]
+        early_shots = len(
+            shots[shots["match_id"].isin(early["match_id"]) & (shots["team_id"] == team_id)]
+        )
+        rest_shots = len(
+            shots[shots["match_id"].isin(rest["match_id"]) & (shots["team_id"] == team_id)]
+        )
+        reasons = []
+        if early_shots < 20:
+            reasons.append(f"early window {early_shots} shots")
+        if rest_shots < 20:
+            reasons.append(f"remainder window {rest_shots} shots")
+        if reasons:
+            notes.append(f"{g['team_name'].iloc[0]} {season} ({'; '.join(reasons)})")
+    return len(notes), "; ".join(notes)
 
-    For every cut-point m the feature is computed twice: once from matches
-    1..m and once from matches m+1..end. The two windows share no matches, so
-    the correlation between them is a clean split-half estimate of how quickly
-    a team's attacking profile becomes recognisable, uncontaminated by the
-    part-whole overlap that comparing against the full season would introduce.
-    """
-    # A season runs 30-35 matches, so beyond about m = 20 the complement window
-    # is too short to estimate a stable profile and the correlation falls for
-    # want of data rather than because the profile has stopped settling. The
-    # curve is therefore cut where the complement drops below ten matches.
-    min_complement = 10
-    max_m = int(tm.groupby(["team_id", "season_name"])["match_number"].max().min()) - min_complement
 
+def metric_ci(y, pred, metric, n_boot: int = 2000) -> str:
+    rng = np.random.default_rng(RANDOM_STATE)
+    vals = []
+    y = np.asarray(y, dtype=float)
+    pred = np.asarray(pred, dtype=float)
+    n = len(y)
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, n)
+        yy, pp = y[idx], pred[idx]
+        if metric == "r2":
+            vals.append(r2_score(yy, pp))
+        elif metric == "mae":
+            vals.append(mean_absolute_error(yy, pp))
+        elif metric == "spearman":
+            vals.append(spearmanr(yy, pp).correlation if np.std(pp) > 0 else np.nan)
+    vals = np.asarray(vals, dtype=float)
+    vals = vals[np.isfinite(vals)]
+    return f"[{np.quantile(vals, .025):.3f}, {np.quantile(vals, .975):.3f}]" if len(vals) else ""
+
+
+def stabilisation_curves(shots: pd.DataFrame, tm: pd.DataFrame, axis_ref: dict) -> pd.DataFrame:
     rows = []
-    for m in range(3, max(max_m + 1, 4), 2):
-        early = early_window_features(shots, tm, m)
-        rest = early_window_features(shots, tm, m, complement=True)
+    for m in STABILISATION_WINDOWS:
+        early = early_window_features(shots, tm, m, axis_ref)
+        rest = early_window_features(shots, tm, m, axis_ref, complement=True)
+        n_excluded, exclusion_note = window_exclusions(shots, tm, m)
         if early.empty or rest.empty:
             continue
-        merged = early.merge(
-            rest, on=["team_id", "season_name"], suffixes=("_early", "_rest")
-        )
-        if len(merged) < 10:
-            continue
-        for f in EARLY_FEATURES:
+        merged = early.merge(rest, on=["team_id", "season_name"], suffixes=("_early", "_rest"))
+        for f in STABILISATION_FEATURES:
             a, b = f"{f}_early", f"{f}_rest"
-            if a not in merged or b not in merged:
-                continue
             ok = merged[[a, b]].dropna()
             if len(ok) < 10 or ok[a].std() == 0 or ok[b].std() == 0:
                 continue
-            rows.append({"Matches": m, "Feature": f,
-                         "r with rest of season": round(ok[a].corr(ok[b]), 3),
-                         "n": len(ok)})
+            rows.append(
+                {
+                    "Matches": m,
+                    "Feature": f,
+                    "Pearson r with remainder": round(ok[a].corr(ok[b]), 3),
+                    "Spearman rho with remainder": round(spearmanr(ok[a], ok[b]).correlation, 3),
+                    "n": len(ok),
+                    "Excluded team-seasons": n_excluded,
+                    "Exclusion note": exclusion_note,
+                }
+            )
     return pd.DataFrame(rows)
 
 
+def fit_predict_model(model, X_tr, y_tr, X_te):
+    fitted = copy.deepcopy(model)
+    fitted.fit(X_tr, y_tr)
+    return fitted.predict(X_te), fitted
+
+
+def prediction_rows(early: pd.DataFrame, rest: pd.DataFrame, wname: str) -> tuple[list[dict], tuple]:
+    data = early.merge(rest, on=["team_id", "season_name"], suffixes=("_early", "_rest"))
+    feats = [f"{f}_early" for f in EARLY_FEATURES if f"{f}_early" in data.columns]
+    X = data[feats].to_numpy(dtype=float)
+    tr = data["season_name"].isin(TRAIN_SEASONS).to_numpy()
+    te = data["season_name"].isin(TEST_SEASONS).to_numpy()
+
+    models = {
+        "Ridge regression": Pipeline(
+            [("scale", StandardScaler()), ("model", RidgeCV(alphas=np.logspace(-2, 3, 40)))]
+        ),
+        "Random forest sensitivity": RandomForestRegressor(
+            n_estimators=600,
+            min_samples_leaf=3,
+            random_state=RANDOM_STATE,
+            n_jobs=-1,
+        ),
+    }
+
+    rows = []
+    shap_payload = None
+    for target in TARGETS:
+        y = data[f"{target}_rest"].to_numpy(dtype=float)
+        naive = data[f"{target}_early"].to_numpy(dtype=float)
+        candidates = [("Naive early-value baseline", naive[te], None)]
+        for name, model in models.items():
+            pred, fitted = fit_predict_model(model, X[tr], y[tr], X[te])
+            candidates.append((name, pred, fitted))
+            if wname == "First 10 matches" and target == "chance_creation_axis" and name.startswith("Random"):
+                shap_payload = (X, y, feats)
+
+        for name, pred, _ in candidates:
+            yy = y[te]
+            rho = spearmanr(yy, pred).correlation if np.std(pred) > 0 else np.nan
+            rows.append(
+                {
+                    "Window": wname,
+                    "Target": target.replace("_", " "),
+                    "Model": name,
+                    "Holdout R2 (2024/25 remainder)": round(r2_score(yy, pred), 3),
+                    "R2 95% bootstrap CI": metric_ci(yy, pred, "r2"),
+                    "Holdout MAE": round(mean_absolute_error(yy, pred), 3),
+                    "MAE 95% bootstrap CI": metric_ci(yy, pred, "mae"),
+                    "Holdout Spearman rho": round(rho, 3) if np.isfinite(rho) else np.nan,
+                    "Spearman 95% bootstrap CI": metric_ci(yy, pred, "spearman"),
+                    "N train": int(tr.sum()),
+                    "N test": int(te.sum()),
+                }
+            )
+    return rows, shap_payload
+
+
 def main() -> None:
-    header("STEP 8  Early-season profile prediction")
+    header("STEP 8  Early-season prediction")
     plotstyle.apply()
 
-    shots = load_frame("shots_scored")
+    shots = use_temporal_holdout_shot_quality(load_frame("shots_scored"))
     tm = load_frame("team_match_profiles")
     ts = load_frame("team_season_clustered")
+    axis_ref = fit_axis_reference(ts)
 
-    # ---- 1. stabilisation curves -----------------------------------------
-    stab = stabilisation_curves(shots, tm, ts)
+    stab = stabilisation_curves(shots, tm, axis_ref)
     save_table(stab, "tableS2_stabilisation_curves")
-    piv = stab.pivot(index="Matches", columns="Feature", values="r with rest of season")
-    earliest = (
-        piv.apply(lambda col: col.index[col.ge(0.70).argmax()] if col.ge(0.70).any() else np.nan)
-        .sort_values()
-    )
-    print("  matches needed for a feature to reach r >= 0.70 with the rest of the season:")
-    print(earliest.dropna().head(12).to_string())
-    never = earliest[earliest.isna()].index.tolist()
-    if never:
-        print(f"  never reaching r >= 0.70 within {int(piv.index.max())} matches "
-              f"({len(never)} of {piv.shape[1]}): {', '.join(never)}")
+    piv = stab.pivot(index="Matches", columns="Feature", values="Pearson r with remainder")
+    earliest = piv.apply(
+        lambda col: col.index[col.ge(0.70).argmax()] if col.ge(0.70).any() else np.nan
+    ).sort_values()
+    print("  matches needed to reach Pearson r >= 0.70 with remainder-season performance:")
+    print(earliest.dropna().to_string() if earliest.notna().any() else "  none")
 
-    # ---- 2 & 3. prediction from each early window ------------------------
-    reg_rows, clf_rows = [], []
+    reg_rows = []
     shap_payload = None
-
     for wname, wsize in WINDOWS.items():
-        early = early_window_features(shots, tm, wsize)
-        data = early.merge(
-            ts[["team_id", "season_name", "cluster"] + AXES],
-            on=["team_id", "season_name"],
-        )
-        feats = [f for f in EARLY_FEATURES if f in data.columns]
-        X = data[feats].to_numpy(dtype=float)
-        tr = data["season_name"].isin(TRAIN_SEASONS).to_numpy()
-        te = data["season_name"].isin(TEST_SEASONS).to_numpy()
-        print(f"\n  {wname}: {len(data)} team-seasons "
-              f"({tr.sum()} train / {te.sum()} test), {len(feats)} features")
+        early = early_window_features(shots, tm, wsize, axis_ref)
+        rest = early_window_features(shots, tm, wsize, axis_ref, complement=True)
+        rows, payload = prediction_rows(early, rest, wname)
+        reg_rows.extend(rows)
+        if payload is not None:
+            shap_payload = payload
+        print(f"\n  {wname}: {len(early)} early profiles, {len(rest)} remainder profiles")
 
-        # --- continuous ---
-        for axis in AXES:
-            y = data[axis].to_numpy(dtype=float)
-            models = {
-                "Ridge regression": Pipeline([("s", StandardScaler()),
-                                              ("m", RidgeCV(alphas=np.logspace(-2, 3, 30)))]),
-                "Random forest": RandomForestRegressor(
-                    n_estimators=500, min_samples_leaf=3,
-                    random_state=RANDOM_STATE, n_jobs=-1),
-                "Mean baseline": DummyRegressor(strategy="mean"),
-            }
-            for mname, model in models.items():
-                model.fit(X[tr], y[tr])
-                pred = model.predict(X[te])
-                # Repeated CV over all team-seasons as a supplementary estimate.
-                cv = RepeatedKFold(n_splits=5, n_repeats=10, random_state=RANDOM_STATE)
-                cv_scores = []
-                for i_tr, i_te in cv.split(X):
-                    import copy
-                    m2 = copy.deepcopy(model)
-                    m2.fit(X[i_tr], y[i_tr])
-                    cv_scores.append(r2_score(y[i_te], m2.predict(X[i_te])))
-                reg_rows.append({
-                    "Window": wname, "Target": axis.replace("_", " "),
-                    "Model": mname,
-                    "Holdout R2 (2024/25)": round(r2_score(y[te], pred), 3),
-                    "Holdout MAE": round(mean_absolute_error(y[te], pred), 3),
-                    "Holdout r": round(np.corrcoef(y[te], pred)[0, 1], 3)
-                    if np.std(pred) > 0 else np.nan,
-                    "Repeated-CV R2 (mean)": round(float(np.mean(cv_scores)), 3),
-                    "Repeated-CV R2 (SD)": round(float(np.std(cv_scores)), 3),
-                    "N train": int(tr.sum()), "N test": int(te.sum()),
-                })
-
-        # --- classification ---
-        yc = data["cluster"].to_numpy()
-        clf_models = {
-            "Multinomial logistic": Pipeline([
-                ("s", StandardScaler()),
-                ("m", LogisticRegression(max_iter=5000, C=0.5)),
-            ]),
-            "Random forest": RandomForestClassifier(
-                n_estimators=500, min_samples_leaf=2,
-                random_state=RANDOM_STATE, n_jobs=-1, class_weight="balanced"),
-            "Majority-class baseline": DummyClassifier(strategy="most_frequent"),
-        }
-        for mname, model in clf_models.items():
-            model.fit(X[tr], yc[tr])
-            pred = model.predict(X[te])
-            acc = (pred == yc[te]).mean()
-            # Bootstrap interval on the 16-team test set.
-            rng = np.random.default_rng(RANDOM_STATE)
-            boots = [
-                (pred[i] == yc[te][i]).mean()
-                for i in (rng.integers(0, te.sum(), te.sum()) for _ in range(2000))
-            ]
-            skf = RepeatedStratifiedKFold(n_splits=4, n_repeats=10, random_state=RANDOM_STATE)
-            cv_acc = []
-            for i_tr, i_te in skf.split(X, yc):
-                import copy
-                m2 = copy.deepcopy(model)
-                m2.fit(X[i_tr], yc[i_tr])
-                cv_acc.append((m2.predict(X[i_te]) == yc[i_te]).mean())
-            clf_rows.append({
-                "Window": wname, "Model": mname,
-                "Holdout accuracy": round(acc, 3),
-                "95% bootstrap CI": f"[{np.quantile(boots, .025):.2f}, {np.quantile(boots, .975):.2f}]",
-                "Macro F1": round(f1_score(yc[te], pred, average="macro", zero_division=0), 3),
-                "Balanced accuracy": round(balanced_accuracy_score(yc[te], pred), 3),
-                "Repeated-CV accuracy": round(float(np.mean(cv_acc)), 3),
-                "N train": int(tr.sum()), "N test": int(te.sum()),
-            })
-
-        if wname == "First 10 matches":
-            shap_payload = (X, data[AXES[0]].to_numpy(dtype=float), feats)
-
-    t7b = pd.DataFrame(reg_rows)
-    t7c = pd.DataFrame(clf_rows)
-    print("\n  continuous prediction of the full-season profile axes:")
-    print(t7b[t7b["Model"] != "Mean baseline"][
-        ["Window", "Target", "Model", "Holdout R2 (2024/25)", "Holdout r",
-         "Repeated-CV R2 (mean)"]].to_string(index=False))
-    print("\n  cluster-membership classification:")
-    print(t7c[["Window", "Model", "Holdout accuracy", "95% bootstrap CI",
-               "Macro F1", "Repeated-CV accuracy"]].to_string(index=False))
-    save_table(t7b, "tableS3_early_season_regression")
-    save_table(t7c, "tableS4_early_season_classification")
+    out = pd.DataFrame(reg_rows)
+    save_table(out, "tableS3_early_season_regression")
+    print("\n  early-to-remainder prediction:")
+    print(
+        out[out["Model"] != "Random forest sensitivity"][
+            ["Window", "Target", "Model", "Holdout R2 (2024/25 remainder)",
+             "Holdout MAE", "Holdout Spearman rho"]
+        ].to_string(index=False)
+    )
 
     make_stabilisation_figure(stab)
     if shap_payload:
@@ -282,50 +337,69 @@ def main() -> None:
 def make_stabilisation_figure(stab: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
-    piv = stab.pivot(index="Matches", columns="Feature", values="r with rest of season")
-    final = piv.iloc[-1].sort_values(ascending=False)
-    top = list(final.head(6).index)
-
-    fig, ax = plt.subplots(figsize=(plotstyle.W_DOUBLE * 0.62, 3.2))
-    for i, f in enumerate(top):
-        ax.plot(piv.index, piv[f], marker=plotstyle.MARKERS[i % len(plotstyle.MARKERS)],
-                color=plotstyle.CATEGORICAL[i % len(plotstyle.CATEGORICAL)],
-                label=f.replace("_", " "), markersize=3.5,
-                markeredgecolor="white", markeredgewidth=0.4)
-    others = [c for c in piv.columns if c not in top]
-    if others:
-        ax.plot(piv.index, piv[others].mean(axis=1), color=plotstyle.INK_MUTED,
-                lw=1.1, ls=(0, (4, 3)), label="Other features (mean)")
+    piv = stab.pivot(index="Matches", columns="Feature", values="Pearson r with remainder")
+    show = [
+        "chance_creation_axis",
+        "finishing_axis",
+        "xg_per_match",
+        "goals_minus_xg_per_match",
+        "shots_per_match",
+        "on_target_rate",
+    ]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_DOUBLE * 0.70, 3.35))
+    for i, f in enumerate([f for f in show if f in piv.columns]):
+        ax.plot(
+            piv.index,
+            piv[f],
+            marker=plotstyle.MARKERS[i % len(plotstyle.MARKERS)],
+            color=plotstyle.CATEGORICAL[i % len(plotstyle.CATEGORICAL)],
+            label=f.replace("_", " "),
+            markersize=3.5,
+            markeredgecolor="white",
+            markeredgewidth=0.4,
+        )
     ax.axhline(0.70, color=plotstyle.INK_MUTED, lw=0.8, ls=(0, (2, 2)))
     ax.text(piv.index.max(), 0.71, "r = 0.70", ha="right", fontsize=6.3,
             color=plotstyle.INK_MUTED)
-    ax.set_xlabel("Matches elapsed in the season")
-    ax.set_ylabel("Split-half correlation with the rest of the season")
-    ax.set_title("Stabilisation of attacking-profile features\n(disjoint split-half within season)", loc="left", fontsize=8)
-    ax.set_ylim(0, 1.02)
-    ax.legend(loc="lower right", fontsize=6.3, ncol=1)
+    ax.set_xlabel("Matches elapsed")
+    ax.set_ylabel("Pearson r with remainder of season")
+    ax.set_title("Stabilisation against non-overlapping remainder-season performance", loc="left")
+    ax.set_ylim(-0.15, 1.02)
+    ax.legend(loc="lower right", fontsize=6.3)
     plotstyle.save(fig, "figureS1_stabilisation")
 
 
 def make_shap_figure(X, y, feats) -> None:
     import matplotlib.pyplot as plt
     import shap
-    from sklearn.ensemble import RandomForestRegressor
 
-    model = RandomForestRegressor(n_estimators=500, min_samples_leaf=3,
-                                  random_state=RANDOM_STATE, n_jobs=-1).fit(X, y)
+    model = RandomForestRegressor(
+        n_estimators=600,
+        min_samples_leaf=3,
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+    ).fit(X, y)
     sv = shap.TreeExplainer(model).shap_values(X)
     imp = np.abs(np.asarray(sv)).mean(axis=0)
     order = np.argsort(imp)[::-1][:12][::-1]
 
     fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.35, 3.0))
-    ax.barh(range(len(order)), imp[order], color=plotstyle.CATEGORICAL[0],
-            height=0.68, edgecolor="white", linewidth=0.5)
+    ax.barh(
+        range(len(order)),
+        imp[order],
+        color=plotstyle.CATEGORICAL[0],
+        height=0.68,
+        edgecolor="white",
+        linewidth=0.5,
+    )
     ax.set_yticks(range(len(order)))
-    ax.set_yticklabels([feats[i].replace("_", " ") for i in order])
+    ax.set_yticklabels([feats[i].replace("_early", "").replace("_", " ") for i in order])
     ax.set_xlabel("Mean |SHAP value|")
-    ax.set_title("Early-season predictors of the full-season chance-creation axis\n"
-                 "(first 10 matches)", loc="left", fontsize=8)
+    ax.set_title(
+        "Early predictors of remainder-season chance creation\n(first 10 matches)",
+        loc="left",
+        fontsize=8,
+    )
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     plotstyle.save(fig, "figureS2_early_season_shap")

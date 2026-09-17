@@ -1,9 +1,9 @@
 """Step 9 - Sensitivity and robustness analyses (proposal 5.10).
 
 Every check listed in the proposal is run, plus two added after the data audit:
-a shot-quality model fitted without the `situation` predictor (the variable
-whose taxonomy shifts at the 2024/25 boundary, step 1b), and a comparison of
-pooled against within-season standardisation for the profile vectors.
+a shot-quality/profile-construction workflow re-run without the taxonomy-
+affected `situation` variable, and a comparison of pooled against within-
+season standardisation for the profile vectors.
 
 Produces
     tables/table7_robustness.csv
@@ -20,7 +20,8 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-from sklearn.metrics import roc_auc_score, silhouette_score
+from sklearn.metrics import adjusted_rand_score, roc_auc_score, silhouette_score
+from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
 
 from common import (
@@ -50,6 +51,8 @@ from s04_profiles import (
     SHOT_SELECTION_FEATURES,
     SPATIAL_ONLY_FEATURES,
     LOAD_RESPONSE_FEATURES,
+    build_team_match,
+    build_team_season,
     build_player_season,
 )
 from s05_clustering import bootstrap_stability, standardise_within_season
@@ -57,6 +60,17 @@ from s05_clustering import bootstrap_stability, standardise_within_season
 warnings.filterwarnings("ignore")
 
 ROWS: list[dict] = []
+PRIMARY_CLUSTER_K = 2
+ROBUSTNESS_CLUSTER_BOOT = 400
+
+SITUATION_DERIVED_PROFILE_FEATURES = {
+    "assisted_share",
+    "set_piece_share",
+    "fast_break_share",
+}
+NON_SITUATION_PROFILE_FEATURES = [
+    f for f in PROFILE_FEATURES if f not in SITUATION_DERIVED_PROFILE_FEATURES
+]
 
 
 def record(analysis, variation, metric, value, reference=None, note=""):
@@ -108,6 +122,40 @@ def fit_shot_quality(df, numeric, binary, categorical, train_mask, test_mask):
             n_iter = tuned.named_steps["clf"].get_best_iteration()
         pipe = refit_full(factory, X[train_mask], y[train_mask], n_iter)
     return pipe.predict_proba(X[test_mask])[:, 1], y[test_mask]
+
+
+def retained_profile_scores(data: pd.DataFrame, features: list[str]) -> np.ndarray:
+    """Match step 5 by retaining enough PCs to explain at least 80% variance."""
+    Z = standardise_within_season(data, features)
+    pca_full = PCA().fit(Z)
+    n_comp = int(np.searchsorted(np.cumsum(pca_full.explained_variance_ratio_), 0.80) + 1)
+    n_comp = min(n_comp, Z.shape[1], Z.shape[0])
+    return PCA(n_components=n_comp, random_state=RANDOM_STATE).fit_transform(Z)
+
+
+def oof_shot_quality(df, numeric, binary, categorical) -> np.ndarray:
+    """Generate grouped out-of-fold predictions for a sensitivity workflow."""
+    family, config, _ = best_config()
+    factory = dict(build_candidates(numeric, binary, categorical)[family])[config]
+    cols = list(numeric) + list(binary) + list(categorical)
+    X, y = df[cols], df[TARGET].to_numpy()
+
+    out = np.full(len(df), np.nan)
+    gkf = GroupKFold(n_splits=5)
+    for k, (tr, va) in enumerate(gkf.split(X, y, groups=df["match_id"])):
+        n_inner = int(0.85 * len(tr))
+        pipe = fit_with_validation(
+            factory(),
+            X.iloc[tr[:n_inner]],
+            y[tr[:n_inner]],
+            X.iloc[tr[n_inner:]],
+            y[tr[n_inner:]],
+        )
+        out[va] = pipe.predict_proba(X.iloc[va])[:, 1]
+        print(f"    no-situation profile workflow fold {k + 1}/5 done")
+    if np.isnan(out).any():
+        raise RuntimeError("out-of-fold prediction failed for at least one shot")
+    return out
 
 
 def shot_quality_checks(df):
@@ -207,21 +255,37 @@ def clustering_checks(ts):
         ),
     }
     ref_sil = None
+    ref_jaccard = None
     for label, feats in variants.items():
         feats = [f for f in feats if f in ts.columns and ts[f].notna().all()]
         if len(feats) < 3:
             continue
-        Z = standardise_within_season(ts, feats)
-        S = PCA(n_components=min(4, len(feats)), random_state=RANDOM_STATE).fit_transform(Z)
-        lab = KMeans(n_clusters=3, n_init=50, random_state=RANDOM_STATE).fit_predict(S)
+        S = retained_profile_scores(ts, feats)
+        lab = KMeans(
+            n_clusters=PRIMARY_CLUSTER_K,
+            n_init=50,
+            random_state=RANDOM_STATE,
+        ).fit_predict(S)
         sil = silhouette_score(S, lab)
-        stab = bootstrap_stability("k-means", S, 3, n_boot=200)
+        stab = bootstrap_stability(
+            "k-means",
+            S,
+            PRIMARY_CLUSTER_K,
+            n_boot=ROBUSTNESS_CLUSTER_BOOT,
+        )
         if ref_sil is None:
             ref_sil = sil
-        record("Clustering", label, "Silhouette (k = 3)", sil, ref_sil,
+            ref_jaccard = stab.min()
+        record("Clustering", label, f"Silhouette (k = {PRIMARY_CLUSTER_K})", sil, ref_sil,
                f"{len(feats)} features")
-        record("Clustering", label, "Minimum bootstrap Jaccard", stab.min(), 0.60,
-               "0.60 is the floor for a reportable cluster")
+        record(
+            "Clustering",
+            label,
+            f"Minimum bootstrap Jaccard (k = {PRIMARY_CLUSTER_K})",
+            stab.min(),
+            ref_jaccard,
+            "0.60 is the floor for a reportable cluster",
+        )
         print(f"  {label:<46} silhouette {sil:.3f}  min Jaccard {stab.min():.3f}")
 
     # Pooled versus within-season standardisation.
@@ -231,11 +295,147 @@ def clustering_checks(ts):
         ("Pooled standardisation",
          StandardScaler().fit_transform(ts[PROFILE_FEATURES].to_numpy(dtype=float))),
     ):
-        S = PCA(n_components=4, random_state=RANDOM_STATE).fit_transform(Z)
-        lab = KMeans(n_clusters=3, n_init=50, random_state=RANDOM_STATE).fit_predict(S)
-        stab = bootstrap_stability("k-means", S, 3, n_boot=200)
-        record("Clustering", label, "Minimum bootstrap Jaccard", stab.min(), 0.60)
+        pca_full = PCA().fit(Z)
+        n_comp = int(np.searchsorted(np.cumsum(pca_full.explained_variance_ratio_), 0.80) + 1)
+        S = PCA(n_components=n_comp, random_state=RANDOM_STATE).fit_transform(Z)
+        lab = KMeans(
+            n_clusters=PRIMARY_CLUSTER_K,
+            n_init=50,
+            random_state=RANDOM_STATE,
+        ).fit_predict(S)
+        stab = bootstrap_stability(
+            "k-means",
+            S,
+            PRIMARY_CLUSTER_K,
+            n_boot=ROBUSTNESS_CLUSTER_BOOT,
+        )
+        if label.startswith("Within-season"):
+            ref_jaccard = stab.min()
+        record(
+            "Clustering",
+            label,
+            f"Minimum bootstrap Jaccard (k = {PRIMARY_CLUSTER_K})",
+            stab.min(),
+            ref_jaccard,
+        )
         print(f"  {label:<46} min Jaccard {stab.min():.3f}")
+
+
+def no_situation_profile_workflow(shots, primary_ts):
+    header("B2  No-situation profile-construction workflow")
+    load = load_frame("team_match_load")
+    cat_no_sit = [c for c in CATEGORICAL if c != "situation"]
+
+    rebuilt = shots.copy()
+    rebuilt["shot_quality"] = oof_shot_quality(rebuilt, NUMERIC, BINARY, cat_no_sit)
+    tm_no_sit = build_team_match(rebuilt, load)
+    ts_no_sit = build_team_season(rebuilt, tm_no_sit)
+
+    keys = ["team_id", "season_name"]
+    merged = primary_ts[keys + PROFILE_FEATURES].merge(
+        ts_no_sit[keys + PROFILE_FEATURES],
+        on=keys,
+        suffixes=("_primary", "_no_situation"),
+        validate="one_to_one",
+    )
+    record(
+        "Profile construction",
+        "No-situation workflow",
+        "Team-seasons retained",
+        len(ts_no_sit),
+        len(primary_ts),
+        "OOF shot quality refit without `situation`; "
+        "situation-derived profile features excluded below",
+    )
+
+    comparison_rows = []
+    for f in NON_SITUATION_PROFILE_FEATURES:
+        a = merged[f"{f}_primary"]
+        b = merged[f"{f}_no_situation"]
+        corr = a.corr(b)
+        mad = (a - b).abs().mean()
+        comparison_rows.append(
+            {
+                "Feature": f,
+                "Primary mean": a.mean(),
+                "No-situation mean": b.mean(),
+                "Pearson r": corr,
+                "Mean absolute difference": mad,
+                "Maximum absolute difference": (a - b).abs().max(),
+            }
+        )
+        if f in {"mean_shot_quality", "xg_per_match", "high_quality_share"}:
+            record(
+                "Profile construction",
+                "No-situation workflow",
+                f"{f} correlation",
+                corr,
+                1.0,
+                "Compared with the primary team-season profile values",
+            )
+            record(
+                "Profile construction",
+                "No-situation workflow",
+                f"{f} mean absolute difference",
+                mad,
+                0.0,
+            )
+    save_table(
+        pd.DataFrame(comparison_rows).round(4),
+        "table7b_no_situation_profile_comparison",
+    )
+
+    primary_ns = primary_ts[keys + NON_SITUATION_PROFILE_FEATURES].copy()
+    rebuilt_ns = ts_no_sit[keys + NON_SITUATION_PROFILE_FEATURES].copy()
+    primary_ns = primary_ns.merge(rebuilt_ns[keys], on=keys, validate="one_to_one")
+
+    def profile_space(data):
+        S = retained_profile_scores(data, NON_SITUATION_PROFILE_FEATURES)
+        labels = KMeans(
+            n_clusters=PRIMARY_CLUSTER_K,
+            n_init=50,
+            random_state=RANDOM_STATE,
+        ).fit_predict(S)
+        return S, labels
+
+    S_primary, labels_primary = profile_space(primary_ns)
+    S_no_sit, labels_no_sit = profile_space(rebuilt_ns)
+    ari = adjusted_rand_score(labels_primary, labels_no_sit)
+    sil = silhouette_score(S_no_sit, labels_no_sit)
+    stab = bootstrap_stability(
+        "k-means",
+        S_no_sit,
+        PRIMARY_CLUSTER_K,
+        n_boot=ROBUSTNESS_CLUSTER_BOOT,
+    )
+
+    record(
+        "Profile construction",
+        "No-situation workflow",
+        "Cluster adjusted Rand index",
+        ari,
+        1.0,
+        "Primary and no-situation workflows both exclude situation-derived profile features",
+    )
+    record(
+        "Profile construction",
+        "No-situation workflow",
+        f"Silhouette (k = {PRIMARY_CLUSTER_K})",
+        sil,
+        silhouette_score(S_primary, labels_primary),
+    )
+    record(
+        "Profile construction",
+        "No-situation workflow",
+        f"Minimum bootstrap Jaccard (k = {PRIMARY_CLUSTER_K})",
+        stab.min(),
+        0.60,
+        "0.60 is the floor for a reportable cluster",
+    )
+    print(
+        f"  no-situation workflow: {len(ts_no_sit)} team-seasons, "
+        f"ARI {ari:.3f}, silhouette {sil:.3f}, min Jaccard {stab.min():.3f}"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -372,7 +572,7 @@ def player_checks(shots):
                "Player-seasons retained", len(ps), ref_n)
         record("Player profiles", f"Minimum {thr} shots per player-season",
                "SD of finishing over expectation", foe_sd, None,
-               "Shrinks as the threshold rises, as expected from sampling noise")
+               "Reported as threshold sensitivity; retained-player composition changes with the cutoff")
         print(f"  >= {thr:>2} shots: {len(ps):>3} player-seasons, "
               f"SD(finishing over expectation) {foe_sd:.3f}, "
               f"r(shot quality, goal rate) {corr:.3f}")
@@ -384,6 +584,7 @@ def main() -> None:
 
     shot_quality_checks(shots)
     clustering_checks(ts)
+    no_situation_profile_workflow(shots, ts)
     load_checks(shots)
     player_checks(shots)
 
