@@ -46,6 +46,7 @@ included in this repository without access to the original scraper database.
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
+   Exact package versions are pinned to preserve the numerical analysis.
 2. Run the analysis scripts in order, capturing the complete stdout logs:
    ```bash
    mkdir -p outputs/logs
@@ -70,7 +71,9 @@ figure and summary generation, and the supplementary statistical appendix.
 
 Intermediate analytical frames are regenerated in `data/processed_release/`.
 Tables, figures, model artefacts, captured logs, `RESULTS_SUMMARY.md`, and
-`SUPPLEMENTARY_STATISTICAL_APPENDIX.md` are written to `outputs/`.
+`SUPPLEMENTARY_STATISTICAL_APPENDIX.md` are written to `outputs/`. Generated
+outputs are not versioned; the only committed output tables are the two
+extraction-audit tables needed when the optional source database is absent.
 
 ---
 
@@ -98,9 +101,10 @@ processed release files.
 
 ## Notes on the Data
 
-The analytical sample covers Czech First League seasons 2022/23, 2023/24, and
-2024/25. Season 2025/26 is excluded by design because it was incomplete in the
-source database at analysis time and would have biased early-season analyses.
+The dataset was closed on 28 July 2026. The analytical sample covers Czech
+First League seasons 2022/23, 2023/24, and 2024/25. This three-season window
+was specified before final model fitting; observations from 2025/26 in the
+source collection fall outside that predefined analytical window.
 
 `processed_release/` contains five parquet files. `shots_clean.parquet` is the
 cleaned shot sample after inclusion criteria, event-field harmonisation, and
