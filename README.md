@@ -1,6 +1,8 @@
 # Czech Football Shot-Quality Profiles
 ### Longitudinal Shot Quality and Attacking Performance Profiles in the Czech First League
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22540653.svg)](https://doi.org/10.5281/zenodo.22540653)
+
 ---
 
 ## Repository Structure
@@ -158,8 +160,10 @@ used for layout verification.
 ## Citation
 
 Use the metadata in [`CITATION.cff`](CITATION.cff). GitHub's **Cite this
-repository** control exposes the same record. Add the concept and version DOI
-to this section after the first Zenodo release has been published.
+repository** control exposes the same record. The DOI
+[`10.5281/zenodo.22540653`](https://doi.org/10.5281/zenodo.22540653) is the
+concept DOI covering all archived versions; use a version-specific DOI when an
+analysis must be tied to one immutable release.
 
 ---
 

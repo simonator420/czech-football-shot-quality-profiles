@@ -6,5 +6,6 @@
   statistical summary, and calibration stress test to the final out-of-fold xG
   run.
 - Added the Applied Sciences manuscript package and archival metadata.
+- Replaced inconsistent Zenodo record links with the stable concept DOI.
 - Expanded reproducibility checks, temporal validation, robustness analyses,
   and publication-ready figure generation.

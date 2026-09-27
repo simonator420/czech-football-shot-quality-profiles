@@ -8,7 +8,9 @@ abstract: >-
 authors:
   - family-names: "Salaj"
     given-names: "Šimon"
+    orcid: "https://orcid.org/0009-0007-6825-1286"
 repository-code: "https://github.com/simonator420/czech-football-shot-quality-profiles"
+doi: "10.5281/zenodo.22540653"
 license: MIT
 keywords:
   - football analytics
