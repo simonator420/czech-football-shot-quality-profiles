@@ -12,6 +12,10 @@ Produces
     tables/table8_split_half_reliability.csv
     tables/table8b_split_half_differences.csv
     tables/table9_practical_validity.csv
+    tables/table9c_process_axis_without_finishing.csv
+    tables/table9d_calibration_downstream_sensitivity.csv
+    tables/figure2_aggregate_calibration_sensitivity.csv
+    tables/figure2_aggregate_calibration_sensitivity_summary.csv
     tables/table9b_opponent_adjusted_profiles.csv
     tables/table3c_temporal_validation.csv
     figures/figure10_split_half_reliability.pdf
@@ -26,6 +30,8 @@ import warnings
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
+from scipy.optimize import brentq
+from scipy.special import expit, logit
 from scipy.stats import pearsonr, spearmanr
 from sklearn.decomposition import PCA
 
@@ -33,8 +39,14 @@ import plotstyle
 from common import MODELS, RANDOM_STATE, SEASONS, TEST_SEASONS, TRAIN_SEASONS, header, load_frame, save_table
 from modelling import BINARY, CATEGORICAL, NUMERIC, TARGET, evaluate
 from s03_shot_quality import build_candidates, refit_full
-from s04_profiles import PROFILE_FEATURES, _core_aggregates
+from s04_profiles import (
+    PROFILE_FEATURES,
+    _core_aggregates,
+    build_team_match,
+    build_team_season,
+)
 from s05_clustering import standardise_within_season
+from s06_stability import repeatability
 
 warnings.filterwarnings("ignore")
 
@@ -364,6 +376,238 @@ def practical_validity(ts, matches, shots):
     return pd.DataFrame(rows), d
 
 
+def practical_validity_without_finishing(d: pd.DataFrame) -> pd.DataFrame:
+    """Check that process-axis associations do not depend on finishing PC2."""
+    rows = []
+    for outcome in (
+        "points_per_match",
+        "goal_difference_per_match",
+        "nonpen_goal_difference_per_match",
+    ):
+        formula = f"{outcome} ~ process_chance_creation_axis + C(season_name)"
+        fit = smf.ols(formula, d).fit(
+            cov_type="cluster", cov_kwds={"groups": d["team_id"]}
+        )
+        boot_ci, boot_p = cluster_bootstrap_ci(
+            d, formula, "process_chance_creation_axis"
+        )
+        rows.append(
+            {
+                "Outcome": outcome,
+                "Term": "process_chance_creation_axis",
+                "Estimate": round(float(fit.params["process_chance_creation_axis"]), 4),
+                "SE cluster(team)": round(
+                    float(fit.bse["process_chance_creation_axis"]), 4
+                ),
+                "p cluster(team)": format_p(
+                    float(fit.pvalues["process_chance_creation_axis"])
+                ),
+                "Team-cluster bootstrap 95% CI": boot_ci,
+                "Team-cluster bootstrap p": format_p(boot_p),
+                "Model R2": round(float(fit.rsquared), 3),
+                "Model specification": "Season adjusted; original finishing axis omitted",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def apply_logit_intercept(probability, intercept: float) -> np.ndarray:
+    p = np.asarray(probability, dtype=float)
+    return expit(logit(np.clip(p, 1e-9, 1 - 1e-9)) + intercept)
+
+
+def fit_profile_axes(ts: pd.DataFrame) -> pd.DataFrame:
+    """Recompute the original 17-feature axes after a probability sensitivity."""
+    out = ts.copy().reset_index(drop=True)
+    z = standardise_within_season(out, PROFILE_FEATURES)
+    pca = PCA().fit(z)
+    scores = pca.transform(z)
+    load1 = pd.Series(pca.components_[0], index=PROFILE_FEATURES)
+    load2 = pd.Series(pca.components_[1], index=PROFILE_FEATURES)
+    sign1 = np.sign(load1["mean_shot_quality"]) or 1.0
+    sign2 = np.sign(load2["goals_minus_xg_per_match"]) or 1.0
+    out["chance_creation_axis"] = scores[:, 0] * sign1
+    out["finishing_axis"] = scores[:, 1] * sign2
+    return out
+
+
+def calibration_downstream_sensitivity(
+    shots: pd.DataFrame,
+    load: pd.DataFrame,
+    matches: pd.DataFrame,
+    ts_original: pd.DataFrame,
+    split_original: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Exploratory same-holdout intercept recalibration and downstream stress test.
+
+    The intercept is estimated on the final temporal holdout with the slope
+    fixed at one. Applying that shift to all out-of-fold probabilities is a
+    stress test of downstream conclusions, not an independently validated
+    replacement model.
+    """
+    holdout = shots[
+        (shots["season_name"] == TEST_SEASONS[0])
+        & shots["shot_quality_holdout"].notna()
+    ].copy()
+    y = holdout[TARGET].to_numpy(dtype=float)
+    p = holdout["shot_quality_holdout"].to_numpy(dtype=float)
+    lp = logit(np.clip(p, 1e-9, 1 - 1e-9))
+    intercept = float(
+        brentq(lambda a: float(expit(lp + a).sum() - y.sum()), -20, 20)
+    )
+    holdout["xg_intercept_recalibrated"] = apply_logit_intercept(p, intercept)
+
+    team = holdout.groupby(["team_id", "team_name"], as_index=False).agg(
+        shots=(TARGET, "size"),
+        goals=(TARGET, "sum"),
+        xg_holdout=("shot_quality_holdout", "sum"),
+        xg_intercept_recalibrated=("xg_intercept_recalibrated", "sum"),
+    )
+    team["goals_minus_xg_holdout"] = team["goals"] - team["xg_holdout"]
+    team["goals_minus_xg_recalibrated"] = (
+        team["goals"] - team["xg_intercept_recalibrated"]
+    )
+    team["xg_change"] = team["xg_intercept_recalibrated"] - team["xg_holdout"]
+    team["gmxg_change"] = (
+        team["goals_minus_xg_recalibrated"] - team["goals_minus_xg_holdout"]
+    )
+    team = team.sort_values("xg_holdout", ascending=False)
+
+    summary = pd.DataFrame(
+        [
+            ("intercept_only_logit_shift", intercept),
+            ("heldout_shots", len(holdout)),
+            ("observed_goals", y.sum()),
+            ("sum_xg_holdout", p.sum()),
+            (
+                "sum_xg_intercept_recalibrated",
+                holdout["xg_intercept_recalibrated"].sum(),
+            ),
+            (
+                "spearman_xg_original_vs_recalibrated",
+                spearmanr(team["xg_holdout"], team["xg_intercept_recalibrated"]).correlation,
+            ),
+            (
+                "spearman_gmxg_original_vs_recalibrated",
+                spearmanr(
+                    team["goals_minus_xg_holdout"],
+                    team["goals_minus_xg_recalibrated"],
+                ).correlation,
+            ),
+        ],
+        columns=["metric", "value"],
+    )
+
+    recalibrated_shots = shots.copy()
+    recalibrated_shots["shot_quality"] = apply_logit_intercept(
+        recalibrated_shots["shot_quality"], intercept
+    )
+    recalibrated_tm = build_team_match(recalibrated_shots, load)
+    recalibrated_ts = fit_profile_axes(
+        build_team_season(recalibrated_shots, recalibrated_tm)
+    )
+
+    features = [
+        "chance_creation_axis",
+        "goals_minus_xg_per_match",
+        "finishing_axis",
+    ]
+    between_original = repeatability(ts_original, features).set_index("Feature")
+    between_recal = repeatability(recalibrated_ts, features).set_index("Feature")
+    ref_recal = fit_axis_reference(recalibrated_ts)
+    split_recal, _, _ = split_half_reliability(
+        recalibrated_shots, recalibrated_tm, ref_recal
+    )
+    split_original_i = split_original.set_index("Feature")
+    split_recal_i = split_recal.set_index("Feature")
+
+    rows = []
+    for feature in features:
+        rows.extend(
+            [
+                {
+                    "Feature": feature,
+                    "Metric": "Year-to-year Pearson r",
+                    "Original": between_original.loc[feature, "Year-to-year r"],
+                    "Intercept-shift sensitivity": between_recal.loc[
+                        feature, "Year-to-year r"
+                    ],
+                },
+                {
+                    "Feature": feature,
+                    "Metric": "ICC (team)",
+                    "Original": between_original.loc[feature, "ICC (team)"],
+                    "Intercept-shift sensitivity": between_recal.loc[
+                        feature, "ICC (team)"
+                    ],
+                },
+                {
+                    "Feature": feature,
+                    "Metric": "Split-half Pearson r",
+                    "Original": split_original_i.loc[feature, "Pearson r"],
+                    "Intercept-shift sensitivity": split_recal_i.loc[
+                        feature, "Pearson r"
+                    ],
+                },
+            ]
+        )
+
+    merged = ts_original[
+        ["team_id", "season_name", "chance_creation_axis", "finishing_axis"]
+    ].merge(
+        recalibrated_ts[
+            ["team_id", "season_name", "chance_creation_axis", "finishing_axis"]
+        ],
+        on=["team_id", "season_name"],
+        suffixes=("_original", "_recalibrated"),
+    )
+    for feature in ("chance_creation_axis", "finishing_axis"):
+        rows.append(
+            {
+                "Feature": feature,
+                "Metric": "Spearman original vs recalibrated score",
+                "Original": 1.0,
+                "Intercept-shift sensitivity": spearmanr(
+                    merged[f"{feature}_original"],
+                    merged[f"{feature}_recalibrated"],
+                ).correlation,
+            }
+        )
+
+    results = team_results(matches, shots)
+    for label, frame in (
+        ("Original", ts_original),
+        ("Intercept-shift sensitivity", recalibrated_ts),
+    ):
+        process = add_process_axis(frame).merge(
+            results, on=["team_id", "season_name", "team_name"]
+        )
+        for outcome in ("points_per_match", "goal_difference_per_match"):
+            value = spearmanr(
+                process["process_chance_creation_axis"], process[outcome]
+            ).correlation
+            match = next(
+                (
+                    row
+                    for row in rows
+                    if row["Feature"] == "process_chance_creation_axis"
+                    and row["Metric"] == f"Spearman with {outcome}"
+                ),
+                None,
+            )
+            if match is None:
+                match = {
+                    "Feature": "process_chance_creation_axis",
+                    "Metric": f"Spearman with {outcome}",
+                    "Original": np.nan,
+                    "Intercept-shift sensitivity": np.nan,
+                }
+                rows.append(match)
+            match[label] = value
+
+    return team, summary, pd.DataFrame(rows)
+
+
 def opponent_adjusted(tm: pd.DataFrame, ts: pd.DataFrame) -> pd.DataFrame:
     d = tm.copy()
     d["team_season"] = d["team_id"].astype(str) + "_" + d["season_name"]
@@ -454,6 +698,29 @@ def main() -> None:
     print("\n  practical validity models:")
     print(practical.to_string(index=False))
 
+    practical_sensitivity = practical_validity_without_finishing(practical_data)
+    save_table(practical_sensitivity, "table9c_process_axis_without_finishing")
+    print("\n  process-axis sensitivity models without the original finishing axis:")
+    print(practical_sensitivity.to_string(index=False))
+
+    load = load_frame("team_match_load")
+    calibration_team, calibration_summary, calibration_downstream = (
+        calibration_downstream_sensitivity(shots, load, matches, ts, split)
+    )
+    save_table(calibration_team.round(6), "figure2_aggregate_calibration_sensitivity")
+    save_table(
+        calibration_summary.round(6),
+        "figure2_aggregate_calibration_sensitivity_summary",
+    )
+    save_table(
+        calibration_downstream.round(4),
+        "table9d_calibration_downstream_sensitivity",
+    )
+    print("\n  same-holdout intercept recalibration summary:")
+    print(calibration_summary.to_string(index=False))
+    print("\n  downstream intercept-shift stress test:")
+    print(calibration_downstream.to_string(index=False))
+
     adjusted = opponent_adjusted(tm, ts)
     save_table(adjusted.round(4), "table9b_opponent_adjusted_profiles")
     print("\n  opponent-adjusted xG rating vs chance-creation axis:")
@@ -472,31 +739,35 @@ def main() -> None:
 def make_split_half_figure(split: pd.DataFrame, d: pd.DataFrame, stab: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(2, 2, figsize=(plotstyle.W_DOUBLE, 5.3))
-    axes = axes.ravel()
     panels = [
-        ("xg_per_match", "xG per match"),
-        ("goals_minus_xg_per_match", "Goals minus xG per match"),
+        ("xg_per_match", "xG per match", "figure10_split_half_reliability"),
+        ("goals_minus_xg_per_match", "Goals minus xG per match", "figure10_goals_minus_xg_split_half"),
     ]
-    for ax, (feat, title) in zip(axes[:2], panels):
+    for feat, title, name in panels:
+        fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.2, 3.35))
         x, y = d[f"{feat}_first"], d[f"{feat}_second"]
         ax.scatter(x, y, s=28, color=plotstyle.CATEGORICAL[0], edgecolor="white", linewidth=0.5)
         lo, hi = min(x.min(), y.min()), max(x.max(), y.max())
         ax.plot([lo, hi], [lo, hi], color=plotstyle.INK_MUTED, lw=0.8, ls=(0, (3, 3)))
         ax.set_xlabel("First half")
         ax.set_ylabel("Second half")
-        ax.set_title(title, loc="left")
-    ax = axes[2]
+        ax.set_title(title, loc="center")
+        fig.tight_layout()
+        plotstyle.save(fig, name)
+
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.45, 3.85))
     rr = split.sort_values("Pearson r")
     ax.barh(range(len(rr)), rr["Pearson r"], color=plotstyle.CATEGORICAL[1], height=0.7)
     ax.set_yticks(range(len(rr)))
     ax.set_yticklabels([f.replace("_", " ") for f in rr["Feature"]], fontsize=6)
     ax.set_xlabel("First-half vs second-half Pearson r")
-    ax.set_title("Reliability by indicator", loc="left")
+    ax.set_title("Reliability by indicator", loc="center")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
+    fig.tight_layout()
+    plotstyle.save(fig, "figure10_reliability_by_indicator")
 
-    ax = axes[3]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.65, 3.75))
     piv = stab.pivot(index="Matches", columns="Feature", values="Pearson r with remainder")
     for i, feat in enumerate(["xg_per_match", "chance_creation_axis", "goals_minus_xg_per_match", "finishing_axis"]):
         if feat not in piv:
@@ -511,24 +782,29 @@ def make_split_half_figure(split: pd.DataFrame, d: pd.DataFrame, stab: pd.DataFr
             markeredgecolor="white",
             markeredgewidth=0.4,
         )
-    ax.axhline(0.70, color=plotstyle.INK_MUTED, lw=0.8, ls=(0, (2, 2)))
     ax.set_xlabel("Matches elapsed")
     ax.set_ylabel("Pearson r with remainder")
-    ax.set_title("Stabilisation across the season", loc="left")
-    ax.legend(frameon=False, fontsize=6.2)
+    ax.set_title("Stabilisation across the season", loc="center")
+    ax.set_xticks(piv.index.astype(int))
+    ax.set_ylim(0, 1)
+    ax.legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.26),
+        ncol=4, frameon=False, fontsize=6.2, borderaxespad=0.0,
+        columnspacing=0.9, handlelength=1.7,
+    )
     ax.grid(axis="y")
-    fig.tight_layout()
-    plotstyle.save(fig, "figure10_split_half_reliability")
+    fig.tight_layout(rect=(0, 0.24, 1, 1))
+    plotstyle.save(fig, "figure10_stabilisation_across_season")
 
 
 def make_practical_figure(d: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(plotstyle.W_DOUBLE, 3.1))
-    for ax, y, title in (
-        (axes[0], "points_per_match", "Points per match"),
-        (axes[1], "goal_difference_per_match", "Goal difference per match"),
+    for y, title, name in (
+        ("points_per_match", "Points per match", "figure11_practical_validity"),
+        ("goal_difference_per_match", "Goal difference per match", "figure11_goal_difference_validity"),
     ):
+        fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.38, 3.62))
         for i, season in enumerate(SEASONS):
             sub = d[d["season_name"] == season]
             ax.scatter(
@@ -547,10 +823,14 @@ def make_practical_figure(d: pd.DataFrame) -> None:
         ax.fill_between(xs, pred["mean_ci_lower"], pred["mean_ci_upper"], color=plotstyle.INK_MUTED, alpha=0.18)
         ax.set_xlabel("Process-only chance-creation axis")
         ax.set_ylabel(title)
-        ax.set_title(title, loc="left")
-    axes[0].legend(frameon=False, fontsize=6.5)
-    fig.tight_layout()
-    plotstyle.save(fig, "figure11_practical_validity")
+        ax.set_title(title, loc="center")
+        ax.legend(
+            loc="upper center", bbox_to_anchor=(0.5, -0.24),
+            ncol=len(SEASONS), frameon=False, fontsize=6.5, borderaxespad=0.0,
+            columnspacing=1.1, handlelength=1.6,
+        )
+        fig.tight_layout(rect=(0, 0.21, 1, 1))
+        plotstyle.save(fig, name)
 
 
 if __name__ == "__main__":

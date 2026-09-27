@@ -1,0 +1,13 @@
+Variable,Type,2022/23,2023/24,2024/25,Ratio 2024/25 : earlier seasons
+situation = assisted,Technical annotation,0.5574,0.5452,0.4678,0.85
+situation = corner,Technical annotation,0.155,0.1592,0.165,1.05
+situation = open_play,Technical annotation,0.1586,0.149,0.1349,0.88
+situation = set_piece,Technical annotation,0.0635,0.0694,0.0684,1.03
+situation = throw_in,Technical annotation,0.0112,0.0139,0.0651,5.18
+situation = free_kick,Technical annotation,0.0278,0.0227,0.0189,0.75
+situation = fast_break,Technical annotation,0.0158,0.0295,0.0703,3.1
+situation = penalty,Technical annotation,0.0107,0.011,0.0097,0.9
+mean_distance_m,Spatial / derived,18.1188,18.0029,17.0413,0.94
+close_range_share,Spatial / derived,0.1982,0.2125,0.262,1.28
+inside_box_share,Spatial / derived,0.6186,0.6063,0.6322,1.03
+header_share,Spatial / derived,0.1966,0.184,0.1867,0.98

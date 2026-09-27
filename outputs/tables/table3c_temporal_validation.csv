@@ -1,0 +1,3 @@
+Model,N shots,AUC,PR-AUC,Log loss,Brier score,Brier skill score,Calibration slope,Calibration intercept,ECE
+Temporal development validation: 2022/23 -> 2023/24,7261,0.788,0.4133,0.2746,0.0773,0.1797,1.0602,-0.1884,0.0158
+Final temporal holdout: 2022/23 + 2023/24 -> 2024/25,7102,0.7747,0.383,0.2764,0.0777,0.1461,0.9805,-0.3199,0.0269

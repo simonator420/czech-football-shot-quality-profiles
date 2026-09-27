@@ -205,6 +205,7 @@ def metric_ci(y, pred, metric, n_boot: int = 2000) -> str:
 
 
 def stabilisation_curves(shots: pd.DataFrame, tm: pd.DataFrame, axis_ref: dict) -> pd.DataFrame:
+    rng = np.random.default_rng(RANDOM_STATE)
     rows = []
     for m in STABILISATION_WINDOWS:
         early = early_window_features(shots, tm, m, axis_ref)
@@ -215,14 +216,29 @@ def stabilisation_curves(shots: pd.DataFrame, tm: pd.DataFrame, axis_ref: dict) 
         merged = early.merge(rest, on=["team_id", "season_name"], suffixes=("_early", "_rest"))
         for f in STABILISATION_FEATURES:
             a, b = f"{f}_early", f"{f}_rest"
-            ok = merged[[a, b]].dropna()
+            ok = merged[["team_id", a, b]].dropna()
             if len(ok) < 10 or ok[a].std() == 0 or ok[b].std() == 0:
                 continue
+            # Resample teams so repeated seasons from one club remain together.
+            teams = ok["team_id"].drop_duplicates().to_numpy()
+            groups = {
+                team: ok.loc[ok["team_id"] == team, [a, b]].to_numpy(dtype=float)
+                for team in teams
+            }
+            boot = []
+            for _ in range(2000):
+                sampled = rng.choice(teams, size=len(teams), replace=True)
+                bb = np.concatenate([groups[team] for team in sampled], axis=0)
+                if bb[:, 0].std() > 0 and bb[:, 1].std() > 0:
+                    boot.append(np.corrcoef(bb[:, 0], bb[:, 1])[0, 1])
+            boot = np.asarray(boot, dtype=float)
             rows.append(
                 {
                     "Matches": m,
                     "Feature": f,
                     "Pearson r with remainder": round(ok[a].corr(ok[b]), 3),
+                    "Pearson 95% team-cluster bootstrap CI lower": round(float(np.quantile(boot, .025)), 3),
+                    "Pearson 95% team-cluster bootstrap CI upper": round(float(np.quantile(boot, .975)), 3),
                     "Spearman rho with remainder": round(spearmanr(ok[a], ok[b]).correlation, 3),
                     "n": len(ok),
                     "Excluded team-seasons": n_excluded,
@@ -346,7 +362,7 @@ def make_stabilisation_figure(stab: pd.DataFrame) -> None:
         "shots_per_match",
         "on_target_rate",
     ]
-    fig, ax = plt.subplots(figsize=(plotstyle.W_DOUBLE * 0.70, 3.35))
+    fig, ax = plt.subplots(figsize=(plotstyle.W_DOUBLE * 0.82, 3.65))
     for i, f in enumerate([f for f in show if f in piv.columns]):
         ax.plot(
             piv.index,
@@ -358,14 +374,17 @@ def make_stabilisation_figure(stab: pd.DataFrame) -> None:
             markeredgecolor="white",
             markeredgewidth=0.4,
         )
-    ax.axhline(0.70, color=plotstyle.INK_MUTED, lw=0.8, ls=(0, (2, 2)))
-    ax.text(piv.index.max(), 0.71, "r = 0.70", ha="right", fontsize=6.3,
-            color=plotstyle.INK_MUTED)
     ax.set_xlabel("Matches elapsed")
     ax.set_ylabel("Pearson r with remainder of season")
-    ax.set_title("Stabilisation against non-overlapping remainder-season performance", loc="left")
-    ax.set_ylim(-0.15, 1.02)
-    ax.legend(loc="lower right", fontsize=6.3)
+    ax.set_title("Stabilisation against non-overlapping remainder-season performance", loc="center")
+    ax.set_xticks(piv.index.astype(int))
+    ax.set_ylim(0, 1)
+    ax.legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.26),
+        ncol=3, fontsize=6.3, frameon=False, borderaxespad=0.0,
+        columnspacing=1.0, handlelength=1.8,
+    )
+    fig.tight_layout(rect=(0, 0.24, 1, 1))
     plotstyle.save(fig, "figureS1_stabilisation")
 
 
@@ -397,7 +416,7 @@ def make_shap_figure(X, y, feats) -> None:
     ax.set_xlabel("Mean |SHAP value|")
     ax.set_title(
         "Early predictors of remainder-season chance creation\n(first 10 matches)",
-        loc="left",
+        loc="center",
         fontsize=8,
     )
     ax.grid(axis="x")

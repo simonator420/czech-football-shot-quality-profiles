@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from matplotlib.colors import PowerNorm
 
 import plotstyle
 from common import (
@@ -26,6 +27,9 @@ from common import (
 # Pitch drawing limits, in metres from the attacked goal line.
 X_MAX = 42.0
 Y_HALF = 34.0
+HEX_GRID_DENSITY = (24, 38)
+HEX_GRID_QUALITY = (22, 35)
+QUALITY_MINCNT = 30
 
 
 def draw_pitch(ax) -> None:
@@ -71,45 +75,155 @@ def main() -> None:
     x, y = to_metres(shots)
     keep = (x <= X_MAX) & (np.abs(y) <= Y_HALF)
     print(f"  {keep.sum():,} of {len(shots):,} shots fall inside the plotted attacking third")
+    quality = shots["shot_quality"].to_numpy()
+    density_norm = PowerNorm(gamma=0.45, vmin=1)
+    # Emphasise differences among ordinary shot locations while retaining a
+    # fixed, interpretable probability scale.  The cell-count threshold keeps
+    # very dark means based on only a handful of attempts out of the map.
+    quality_norm = PowerNorm(gamma=0.48, vmin=0.02, vmax=0.62)
+    write_hexbin_diagnostics(x[keep], y[keep], quality[keep])
 
-    fig, axes = plt.subplots(1, 2, figsize=(plotstyle.W_DOUBLE, 3.2))
-
-    # --- (a) shot density ---
-    ax = axes[0]
+    # --- shot density ---
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.25, 3.8))
     draw_pitch(ax)
     hb = ax.hexbin(
-        x[keep], y[keep], gridsize=32, extent=(0, X_MAX, -Y_HALF, Y_HALF),
-        cmap=plotstyle.SEQUENTIAL, mincnt=1, linewidths=0.15, edgecolors="white", zorder=2,
+        x[keep], y[keep], gridsize=HEX_GRID_DENSITY, extent=(0, X_MAX, -Y_HALF, Y_HALF),
+        cmap=plotstyle.SEQUENTIAL, norm=density_norm, mincnt=1, linewidths=0.12,
+        edgecolors="white", zorder=2,
     )
     cb = fig.colorbar(hb, ax=ax, fraction=0.030, pad=0.02)
     cb.set_label("Shots", fontsize=7)
     cb.ax.tick_params(labelsize=6.5)
     cb.outline.set_visible(False)
-    ax.set_title(f"a  Shot density, {SEASONS[0]}-{SEASONS[-1]} (n = {keep.sum():,})", loc="left")
+    ax.set_title(f"Shot density, {SEASONS[0]}-{SEASONS[-1]} (n = {keep.sum():,})", loc="center")
+    fig.tight_layout()
+    plotstyle.save(fig, "figure1_shot_density")
 
-    # --- (b) mean modelled shot quality ---
-    ax = axes[1]
+    # --- mean modelled shot quality ---
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.25, 3.8))
     draw_pitch(ax)
     hb2 = ax.hexbin(
-        x[keep], y[keep], C=shots["shot_quality"].to_numpy()[keep],
-        reduce_C_function=np.mean, gridsize=26,
-        extent=(0, X_MAX, -Y_HALF, Y_HALF), cmap=plotstyle.SEQUENTIAL, mincnt=8,
-        linewidths=0.15, edgecolors="white", zorder=2,
+        x[keep], y[keep], C=quality[keep],
+        reduce_C_function=np.mean, gridsize=HEX_GRID_QUALITY,
+        extent=(0, X_MAX, -Y_HALF, Y_HALF), cmap=plotstyle.SEQUENTIAL,
+        norm=quality_norm, mincnt=QUALITY_MINCNT,
+        linewidths=0.12, edgecolors="white", zorder=2,
     )
     cb2 = fig.colorbar(hb2, ax=ax, fraction=0.030, pad=0.02)
     cb2.set_label("Mean shot quality", fontsize=7)
     cb2.ax.tick_params(labelsize=6.5)
     cb2.outline.set_visible(False)
-    ax.set_title("b  Modelled shot quality by location", loc="left")
-    ax.text(
-        X_MAX, -Y_HALF - 0.5, "cells with at least 8 shots",
-        ha="right", va="top", fontsize=6.2, color=plotstyle.INK_MUTED,
-    )
-
+    ax.set_title("Modelled shot quality by location", loc="center")
     fig.tight_layout()
-    plotstyle.save(fig, "figure1_shot_density")
+    plotstyle.save(fig, "figure1_modelled_shot_quality_location")
+
+    # --- combined figure 1 for manuscript layouts that prefer paired maps ---
+    fig, axes = plt.subplots(1, 2, figsize=(plotstyle.W_DOUBLE, 4.2))
+    ax = axes[0]
+    draw_pitch(ax)
+    hb = ax.hexbin(
+        x[keep], y[keep], gridsize=HEX_GRID_DENSITY, extent=(0, X_MAX, -Y_HALF, Y_HALF),
+        cmap=plotstyle.SEQUENTIAL, norm=density_norm, mincnt=1, linewidths=0.12,
+        edgecolors="white", zorder=2,
+    )
+    cb = fig.colorbar(hb, ax=ax, fraction=0.034, pad=0.025)
+    cb.set_label("Shots", fontsize=7)
+    cb.ax.tick_params(labelsize=6.5)
+    cb.outline.set_visible(False)
+    ax.set_title(f"Shot density, {SEASONS[0]}-{SEASONS[-1]}", loc="center")
+
+    ax = axes[1]
+    draw_pitch(ax)
+    hb2 = ax.hexbin(
+        x[keep], y[keep], C=quality[keep],
+        reduce_C_function=np.mean, gridsize=HEX_GRID_QUALITY,
+        extent=(0, X_MAX, -Y_HALF, Y_HALF), cmap=plotstyle.SEQUENTIAL,
+        norm=quality_norm, mincnt=QUALITY_MINCNT,
+        linewidths=0.12, edgecolors="white", zorder=2,
+    )
+    cb2 = fig.colorbar(hb2, ax=ax, fraction=0.034, pad=0.025)
+    cb2.set_label("Mean shot quality", fontsize=7)
+    cb2.ax.tick_params(labelsize=6.5)
+    cb2.outline.set_visible(False)
+    ax.set_title("Modelled shot quality by location", loc="center")
+    fig.suptitle(
+        "Spatial distribution of the analytical shot sample",
+        x=0.5,
+        y=0.98,
+        ha="center",
+        fontsize=9,
+        fontweight="bold",
+    )
+    fig.subplots_adjust(left=0.035, right=0.975, bottom=0.08, top=0.80, wspace=0.24)
+    plotstyle.save(fig, "figure1_combined_shot_maps")
 
     write_summary(shots)
+
+
+def _hexbin_arrays(x, y, C=None, gridsize=None, mincnt=1):
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots()
+    if C is None:
+        hb = ax.hexbin(
+            x, y, gridsize=gridsize, extent=(0, X_MAX, -Y_HALF, Y_HALF), mincnt=mincnt,
+        )
+    else:
+        hb = ax.hexbin(
+            x, y, C=C, reduce_C_function=np.mean, gridsize=gridsize,
+            extent=(0, X_MAX, -Y_HALF, Y_HALF), mincnt=mincnt,
+        )
+    values = np.asarray(hb.get_array())
+    offsets = np.asarray(hb.get_offsets())
+    plt.close(fig)
+    return values, offsets
+
+
+def write_hexbin_diagnostics(x: np.ndarray, y: np.ndarray, quality: np.ndarray) -> None:
+    """Record the count check behind Figure 1's darker hexagons."""
+    counts, offsets = _hexbin_arrays(x, y, gridsize=HEX_GRID_DENSITY, mincnt=1)
+    q_means, q_offsets = _hexbin_arrays(x, y, C=quality, gridsize=HEX_GRID_QUALITY, mincnt=1)
+    q_counts, q_count_offsets = _hexbin_arrays(x, y, gridsize=HEX_GRID_QUALITY, mincnt=1)
+
+    if len(q_counts) == len(q_means) and np.allclose(q_offsets, q_count_offsets):
+        matched_counts = q_counts
+    else:
+        count_lookup = {tuple(np.round(p, 8)): c for p, c in zip(q_count_offsets, q_counts)}
+        matched_counts = np.array([count_lookup[tuple(np.round(p, 8))] for p in q_offsets])
+
+    density_order = np.argsort(counts)[::-1][:10]
+    density_top = pd.DataFrame(
+        {
+            "panel": "shot_density",
+            "rank": np.arange(1, len(density_order) + 1),
+            "center_x_m": offsets[density_order, 0],
+            "center_y_m": offsets[density_order, 1],
+            "shot_count": counts[density_order].astype(int),
+            "mean_shot_quality": np.nan,
+        }
+    )
+    q_order = np.argsort(q_means)[::-1][:15]
+    quality_top = pd.DataFrame(
+        {
+            "panel": "mean_shot_quality",
+            "rank": np.arange(1, len(q_order) + 1),
+            "center_x_m": q_offsets[q_order, 0],
+            "center_y_m": q_offsets[q_order, 1],
+            "shot_count": matched_counts[q_order].astype(int),
+            "mean_shot_quality": q_means[q_order],
+        }
+    )
+    diagnostic = pd.concat([density_top, quality_top], ignore_index=True)
+    diagnostic.to_csv(TABLES / "figure1_hexbin_diagnostics.csv", index=False)
+
+    visible = matched_counts >= QUALITY_MINCNT
+    print(
+        f"  Figure 1 hexbin check: density max cell n = {int(counts.max())}; "
+        f"highest mean-SQ cell before filtering n = {int(matched_counts[np.argmax(q_means)])}; "
+        f"mean-SQ display threshold n >= {QUALITY_MINCNT} retains "
+        f"{int(matched_counts[visible].sum()):,} shots across {int(visible.sum())} cells"
+    )
+    print("  [table] outputs/tables/figure1_hexbin_diagnostics.csv")
 
 
 def _read(name: str):
@@ -341,7 +455,7 @@ def write_summary(shots: pd.DataFrame) -> None:
         ("figure1_shot_density", "Shot density and modelled shot quality by location"),
         ("figure2_calibration", "Calibration on the held-out season"),
         ("figure3_shap_importance", "SHAP feature contributions"),
-        ("figure4_profile_space", "Continuous profile space and UMAP projection"),
+        ("figure4_profile_space", "Continuous team-season attacking-profile space"),
         ("figure5_cluster_radar", "Cluster centroid radars"),
         ("figure6_profile_transitions", "Transitions, persistence and repeatability"),
         ("figure7_shot_quality_by_rest", "Shot quality by rest interval and congestion"),

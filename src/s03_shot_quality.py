@@ -393,9 +393,6 @@ def main() -> None:
 def make_calibration_figure(y_te, p_test, results, df, is_test) -> None:
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(plotstyle.W_DOUBLE, 3.0))
-
-    ax = axes[0]
     n_bins = 10
     order = np.argsort(p_test)
     ys, ps = y_te[order], p_test[order]
@@ -410,25 +407,33 @@ def make_calibration_figure(y_te, p_test, results, df, is_test) -> None:
     half = z * np.sqrt(obs * (1 - obs) / ns + z**2 / (4 * ns**2)) / denom
     lo, hi = centre - half, centre + half
 
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.30, 3.55))
     lim = max(pred.max(), obs.max()) * 1.08
-    ax.plot([0, lim], [0, lim], color=plotstyle.INK_MUTED, lw=0.9, ls=(0, (4, 3)), zorder=1)
+    ax.plot(
+        [0, lim], [0, lim], color=plotstyle.INK_MUTED, lw=0.9,
+        ls=(0, (4, 3)), label="Perfect calibration", zorder=1,
+    )
     ax.errorbar(
         pred, obs, yerr=[obs - lo, hi - obs],
         fmt="o", color=plotstyle.CATEGORICAL[0], markersize=4.5,
         ecolor=plotstyle.CATEGORICAL[0], elinewidth=1.0, capsize=2, zorder=3,
         markeredgecolor="white", markeredgewidth=0.6,
+        label="Observed rate (95% Wilson CI)",
     )
     ax.set_xlabel("Predicted shot quality (decile mean)")
     ax.set_ylabel("Observed goal proportion")
-    ax.set_title("a  Calibration, held-out season 2024/25", loc="left")
+    ax.set_title("Calibration, held-out season 2024/25", loc="center")
     ax.set_xlim(0, lim)
     ax.set_ylim(0, lim)
-    ax.text(
-        0.97, 0.06, "dashed line = perfect calibration",
-        transform=ax.transAxes, ha="right", color=plotstyle.INK_MUTED, fontsize=7,
+    ax.legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.22),
+        ncol=2, fontsize=6.7, frameon=False, borderaxespad=0.0,
+        handlelength=2.8, columnspacing=1.8,
     )
+    fig.tight_layout(rect=(0, 0.18, 1, 1))
+    plotstyle.save(fig, "figure2_calibration")
 
-    ax = axes[1]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.25, 3.4))
     ax.hist(
         p_test, bins=40, color=plotstyle.CATEGORICAL[0], alpha=0.85,
         edgecolor="white", linewidth=0.4,
@@ -436,10 +441,10 @@ def make_calibration_figure(y_te, p_test, results, df, is_test) -> None:
     ax.set_yscale("log")
     ax.set_xlabel("Predicted shot quality")
     ax.set_ylabel("Shots (log scale)")
-    ax.set_title("b  Distribution of predicted shot quality", loc="left")
+    ax.set_title("Distribution of predicted shot quality", loc="center")
     ax.grid(axis="y")
-
-    plotstyle.save(fig, "figure2_calibration")
+    fig.tight_layout()
+    plotstyle.save(fig, "figure2_predicted_shot_quality_distribution")
 
 
 def make_shap_figure(pipe, X_test, family: str) -> None:
@@ -477,7 +482,7 @@ def make_shap_figure(pipe, X_test, family: str) -> None:
     ax.set_yticks(range(len(order)))
     ax.set_yticklabels([names[i] for i in order])
     ax.set_xlabel("Mean |SHAP value| (log-odds of a goal)")
-    ax.set_title(f"Feature contributions, {family}", loc="left")
+    ax.set_title(f"Feature contributions, {family}", loc="center")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     for i, v in enumerate(imp[order]):

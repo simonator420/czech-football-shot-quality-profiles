@@ -1,0 +1,21 @@
+player_name,team_name,season_name,position,shots,goals,mean_shot_quality,total_xg,finishing_over_expectation,close_range_share,header_share,on_target_rate
+Václav Jurečka,SK Slavia Praha,2022/23,F,49,20,0.199,9.727,10.273,0.265,0.102,0.653
+Jan Kliment,SK Sigma Olomouc,2024/25,F,51,18,0.201,10.228,7.772,0.412,0.137,0.49
+Ewerton,Baník Ostrava,2023/24,M,80,14,0.102,8.131,5.869,0.062,0.038,0.362
+Veljko Birmančević,AC Sparta Praha,2023/24,F,70,16,0.146,10.222,5.778,0.171,0.086,0.486
+Peter Olayinka,SK Slavia Praha,2022/23,M,39,11,0.134,5.223,5.777,0.359,0.282,0.436
+Pavel Šulc,FC Viktoria Plzeň,2023/24,F,72,18,0.176,12.685,5.315,0.389,0.278,0.403
+Marek Havlík,1. FC Slovácko,2023/24,M,75,12,0.091,6.796,5.204,0.093,0.04,0.36
+Ondrej Lingr,SK Slavia Praha,2022/23,M,41,11,0.154,6.321,4.679,0.366,0.244,0.341
+Lukáš Haraslín,AC Sparta Praha,2024/25,F,79,11,0.081,6.381,4.619,0.038,0.013,0.43
+Roman Kvet,Bohemians Praha 1905,2022/23,M,49,11,0.134,6.565,4.435,0.184,0.082,0.51
+Lukáš Haraslín,AC Sparta Praha,2023/24,F,72,12,0.105,7.572,4.428,0.042,0.014,0.431
+Lamin Jawo,Mladá Boleslav,2023/24,F,32,7,0.09,2.885,4.115,0.219,0.281,0.406
+Jan Chramosta,FK Jablonec,2022/23,F,77,15,0.142,10.915,4.085,0.13,0.013,0.442
+Jakub Řezníček,FC Zbrojovka Brno,2022/23,F,95,19,0.157,14.938,4.062,0.305,0.242,0.495
+Lukáš Juliš,SK Sigma Olomouc,2023/24,F,48,12,0.167,8.033,3.967,0.292,0.167,0.458
+Tomáš Čvančara,AC Sparta Praha,2022/23,F,50,12,0.169,8.452,3.548,0.32,0.26,0.44
+Matyáš Vojta,Mladá Boleslav,2024/25,F,35,10,0.187,6.538,3.462,0.514,0.229,0.6
+Mick van Buren,FC Slovan Liberec,2022/23,F,68,14,0.158,10.777,3.223,0.235,0.235,0.471
+Amar Memić,MFK Karviná,2024/25,M,63,10,0.108,6.808,3.192,0.143,0.063,0.365
+Abdoull Tanko,Baník Ostrava,2023/24,F,51,9,0.114,5.836,3.164,0.216,0.216,0.451

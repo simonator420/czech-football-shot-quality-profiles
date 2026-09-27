@@ -1,0 +1,8 @@
+metric,value
+intercept_only_logit_shift,-0.319895
+heldout_shots,7102.0
+observed_goals,718.0
+sum_xg_holdout,909.215642
+sum_xg_intercept_recalibrated,718.0
+spearman_xg_original_vs_recalibrated,0.997059
+spearman_gmxg_original_vs_recalibrated,0.929412

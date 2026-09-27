@@ -1,0 +1,4 @@
+Model,N shots,AUC,PR-AUC,Log loss,Brier score,Brier skill score,Calibration slope,Calibration intercept,ECE
+"Test season, penalties excluded",7033,0.7596,0.3337,0.2734,0.0765,0.111,0.978,-0.3192,0.0266
+"Test season, all shots",7102,0.7747,0.383,0.2764,0.0777,0.1461,0.9805,-0.3199,0.0269
+"Test season, open play only",4779,0.7562,0.3451,0.2854,0.0808,0.1165,0.95,-0.2459,0.021

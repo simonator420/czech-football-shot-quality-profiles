@@ -1,0 +1,15 @@
+Feature set,k,log_Wk,gap,s_k
+Full (17 features),1,6.5307,0.463,0.0652
+Full (17 features),2,6.0678,0.4777,0.0599
+Full (17 features),3,5.8628,0.4873,0.0608
+Full (17 features),4,5.7058,0.4786,0.0623
+Full (17 features),5,5.5915,0.4676,0.0744
+Full (17 features),6,5.4784,0.4584,0.0699
+Full (17 features),7,5.3668,0.4511,0.0771
+Reduced (9 features),1,5.8929,0.532,0.0597
+Reduced (9 features),2,5.6151,0.4426,0.0599
+Reduced (9 features),3,5.4401,0.4183,0.0617
+Reduced (9 features),4,5.2889,0.4045,0.0618
+Reduced (9 features),5,5.155,0.4125,0.0757
+Reduced (9 features),6,5.0127,0.4361,0.0715
+Reduced (9 features),7,4.8657,0.465,0.0772

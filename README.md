@@ -27,7 +27,14 @@ czech-football-shot-quality-profiles/
 │   ├── s09_robustness.py
 │   ├── s10_figures_summary.py
 │   ├── s11_statistical_appendix.py
-│   └── s12_core_validation.py
+│   ├── s12_core_validation.py
+│   └── s13_rebuild_manuscript_figures.py
+├── manuscript/
+│   ├── Applied_Sciences_Manuscript.docx
+│   ├── Applied_Sciences_Manuscript.pdf
+│   └── figures/
+├── CITATION.cff
+├── .zenodo.json
 ├── requirements.txt
 ├── README.md
 └── LICENSE
@@ -55,7 +62,8 @@ included in this repository without access to the original scraper database.
             src/s01b_data_continuity.py src/s04_profiles.py src/s05_clustering.py \
             src/s06_stability.py src/s07_load_analysis.py src/s08_prediction.py \
             src/s09_robustness.py src/s12_core_validation.py \
-            src/s10_figures_summary.py src/s11_statistical_appendix.py; do
+            src/s10_figures_summary.py src/s11_statistical_appendix.py \
+            src/s13_rebuild_manuscript_figures.py; do
        name="$(basename "$s" .py)"
        python "$s" 2>&1 | tee "outputs/logs/${name}.log"
        rc="${PIPESTATUS[0]}"
@@ -71,9 +79,11 @@ figure and summary generation, and the supplementary statistical appendix.
 
 Intermediate analytical frames are regenerated in `data/processed_release/`.
 Tables, figures, model artefacts, captured logs, `RESULTS_SUMMARY.md`, and
-`SUPPLEMENTARY_STATISTICAL_APPENDIX.md` are written to `outputs/`. Generated
-outputs are not versioned; the only committed output tables are the two
-extraction-audit tables needed when the optional source database is absent.
+`SUPPLEMENTARY_STATISTICAL_APPENDIX.md` are written to `outputs/`. The release
+versions every CSV table and both human-readable summaries. Regenerable figure
+files, fitted model binaries, and execution logs remain excluded to keep the
+source archive compact; the five numbered manuscript figures are retained in
+`manuscript/figures/`.
 
 ---
 
@@ -130,9 +140,26 @@ numbering when preparing the submission package.
 
 ---
 
+## Release Consistency
+
+The manuscript, source tables, and public release use the same final
+out-of-fold xG run. The principal within-season values are xG per match
+`r = 0.751`, goals minus xG per match `r = 0.452`, chance-creation axis
+`r = 0.628`, and finishing axis `r = 0.552`. Table 6 Panels B and C, Figure 4,
+the calibration stress test, and the statistical appendix were checked against
+those source outputs before release.
+
+The journal-formatted manuscript and numbered figures are available in
+[`manuscript/`](manuscript/). The PDF is a deterministic render of the DOCX
+used for layout verification.
+
+---
+
 ## Citation
 
-> *Will be updated upon publication.*
+Use the metadata in [`CITATION.cff`](CITATION.cff). GitHub's **Cite this
+repository** control exposes the same record. Add the concept and version DOI
+to this section after the first Zenodo release has been published.
 
 ---
 

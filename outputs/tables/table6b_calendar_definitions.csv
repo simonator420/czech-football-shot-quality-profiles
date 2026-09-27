@@ -1,0 +1,4 @@
+Calendar definition,Short-rest shots,Estimate,CI low,CI high,p,N,Model,Scale
+League-only calendar,693,0.0026,-0.0725,0.0777,0.9463,20719,LMM (team random intercept),units of outcome
+All-competition calendar,1260,-0.0195,-0.0761,0.0372,0.5003,20782,LMM (team random intercept),units of outcome
+"All-competition, alternative cut-points",4326,0.0039,-0.0307,0.0385,0.8266,20782,LMM (team random intercept),units of outcome

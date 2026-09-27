@@ -1,0 +1,11 @@
+Outcome,Term,Estimate,SE cluster(team),p cluster(team),Team-cluster bootstrap 95% CI,Team-cluster bootstrap p,Model R2,Inference note
+points_per_match,process_chance_creation_axis,0.1732,0.0157,< .001,"[0.132, 0.201]",< .001,0.815,Exploratory concurrent association; team-cluster bootstrap checks small-cluster sensitivity
+points_per_match,finishing_axis,0.1076,0.0213,< .001,"[0.060, 0.149]",< .001,0.815,Exploratory concurrent association; team-cluster bootstrap checks small-cluster sensitivity
+goal_difference_per_match,process_chance_creation_axis,0.2745,0.0253,< .001,"[0.212, 0.317]",< .001,0.845,Exploratory concurrent association; team-cluster bootstrap checks small-cluster sensitivity
+goal_difference_per_match,finishing_axis,0.1814,0.035,< .001,"[0.100, 0.245]",< .001,0.845,Exploratory concurrent association; team-cluster bootstrap checks small-cluster sensitivity
+nonpen_goal_difference_per_match,process_chance_creation_axis,0.2501,0.0197,< .001,"[0.198, 0.284]",< .001,0.836,Exploratory concurrent association; team-cluster bootstrap checks small-cluster sensitivity
+nonpen_goal_difference_per_match,finishing_axis,0.1582,0.0328,< .001,"[0.083, 0.216]",< .001,0.836,Exploratory concurrent association; team-cluster bootstrap checks small-cluster sensitivity
+points_per_match,Spearman(process_chance_creation_axis),0.6662,,,,,,Descriptive rank association
+goal_difference_per_match,Spearman(process_chance_creation_axis),0.712,,,,,,Descriptive rank association
+points_per_match,Spearman(finishing_axis),0.1024,,,,,,Descriptive rank association
+goal_difference_per_match,Spearman(finishing_axis),0.0973,,,,,,Descriptive rank association

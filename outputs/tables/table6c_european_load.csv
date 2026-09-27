@@ -1,0 +1,5 @@
+Exposure,Exposed shots,Estimate,CI low,CI high,p,N,Model,Scale
+European match in previous 7 days,2022,0.0099,-0.0445,0.0643,0.7206,6760,LMM (team random intercept),units of outcome
+Cup match in previous 7 days,1624,-0.0582,-0.1086,-0.0079,0.0233,20782,LMM (team random intercept),units of outcome
+Upcoming cup/European fixture within 3 days,614,-0.0237,-0.1032,0.0559,0.5597,20782,LMM (team random intercept),units of outcome
+European participant (team-season),6760,0.0799,0.0307,0.1291,0.0015,20782,LMM (team random intercept),units of outcome

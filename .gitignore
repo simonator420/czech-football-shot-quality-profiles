@@ -23,6 +23,9 @@ outputs/**
 !outputs/logs/
 !outputs/tables/table1_dataset_construction.csv
 !outputs/tables/table2_sample_characteristics.csv
+!outputs/tables/*.csv
+!outputs/RESULTS_SUMMARY.md
+!outputs/SUPPLEMENTARY_STATISTICAL_APPENDIX.md
 !outputs/figures/.gitkeep
 !outputs/models/.gitkeep
 !outputs/logs/.gitkeep
@@ -35,3 +38,7 @@ outputs/**
 *.tif
 *.tiff
 *.eps
+
+# Public manuscript package retained for the archival release.
+!manuscript/
+!manuscript/**

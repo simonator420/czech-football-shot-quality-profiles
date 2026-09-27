@@ -1,0 +1,16 @@
+Feature A,Feature B,Pearson r
+median_shot_quality,low_quality_share,-0.969
+mean_shot_quality,high_quality_share,0.95
+xg_per_match,shots_per_match,0.905
+mean_distance_m,low_quality_share,0.902
+assisted_share,set_piece_share,-0.888
+mean_shot_quality,median_shot_quality,0.884
+median_shot_quality,mean_distance_m,-0.879
+mean_shot_quality,low_quality_share,-0.869
+median_shot_quality,high_quality_share,0.866
+mean_shot_quality,xg_per_match,0.844
+mean_distance_m,close_range_share,-0.84
+xg_per_match,high_quality_share,0.838
+high_quality_share,low_quality_share,-0.834
+mean_shot_quality,mean_distance_m,-0.814
+mean_distance_m,high_quality_share,-0.804

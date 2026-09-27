@@ -1,0 +1,4 @@
+Outcome,Term,Estimate,SE cluster(team),p cluster(team),Team-cluster bootstrap 95% CI,Team-cluster bootstrap p,Model R2,Model specification
+points_per_match,process_chance_creation_axis,0.1546,0.021,< .001,"[0.103, 0.189]",< .001,0.685,Season adjusted; original finishing axis omitted
+goal_difference_per_match,process_chance_creation_axis,0.2431,0.034,< .001,"[0.168, 0.300]",< .001,0.694,Season adjusted; original finishing axis omitted
+nonpen_goal_difference_per_match,process_chance_creation_axis,0.2227,0.0261,< .001,"[0.159, 0.266]",< .001,0.698,Season adjusted; original finishing axis omitted

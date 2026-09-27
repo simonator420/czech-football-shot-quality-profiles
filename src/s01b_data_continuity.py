@@ -124,16 +124,18 @@ def make_figure(m: pd.DataFrame, boundary) -> None:
         ("assisted", "Assisted share"),
         ("distance", "Mean shot distance (m)"),
     ]
-    fig, axes = plt.subplots(2, 2, figsize=(plotstyle.W_DOUBLE, 4.2), sharex=True)
-    axes = axes.ravel()
+    boundary_handle = Line2D(
+        [0], [0], color=plotstyle.INK_MUTED, lw=1.0, ls=(0, (4, 3)),
+        label="2024/25 season boundary",
+    )
     for i, (col, label) in enumerate(series):
-        ax = axes[i]
+        fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.35, 3.3))
         ax.plot(m.index, m[col], color=plotstyle.CATEGORICAL[i],
                 marker=plotstyle.MARKERS[i], markersize=3,
                 markeredgecolor="white", markeredgewidth=0.4)
         ax.axvline(boundary, color=plotstyle.INK_MUTED, lw=1.0, ls=(0, (4, 3)))
         ax.set_ylabel("")
-        ax.set_title(label, loc="left", x=0.0, fontsize=8.5, pad=6)
+        ax.set_title(label, loc="center", fontsize=8.5, pad=6)
         if col != "distance":
             ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
         ax.grid(axis="y")
@@ -143,14 +145,13 @@ def make_figure(m: pd.DataFrame, boundary) -> None:
         for lbl in ax.get_xticklabels():
             lbl.set_rotation(0)
             lbl.set_fontsize(6.5)
-    boundary_handle = Line2D(
-        [0], [0], color=plotstyle.INK_MUTED, lw=1.0, ls=(0, (4, 3)),
-        label="2024/25 season boundary",
-    )
-    fig.legend(handles=[boundary_handle], loc="lower center",
-               bbox_to_anchor=(0.5, -0.02), frameon=False)
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
-    plotstyle.save(fig, "figureS3_taxonomy_break")
+        ax.legend(
+            handles=[boundary_handle], loc="upper center", bbox_to_anchor=(0.5, -0.18),
+            frameon=False, borderaxespad=0.0,
+        )
+        fig.tight_layout(rect=(0, 0.14, 1, 1))
+        name = "figureS3_taxonomy_break" if i == 0 else f"figureS3_{col}_taxonomy_break"
+        plotstyle.save(fig, name)
 
 
 if __name__ == "__main__":

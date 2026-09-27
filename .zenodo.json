@@ -1,0 +1,26 @@
+{
+  "title": "Czech Football Shot-Quality Profiles",
+  "description": "Reproducibility package for temporally validated shot-quality modelling and longitudinal attacking-profile analysis in the Czech First League.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "creators": [
+    {
+      "name": "Salaj, Šimon"
+    }
+  ],
+  "keywords": [
+    "football analytics",
+    "expected goals",
+    "machine learning",
+    "reproducibility",
+    "performance profiling"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/simonator420/czech-football-shot-quality-profiles",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

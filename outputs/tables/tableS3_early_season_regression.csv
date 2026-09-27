@@ -1,0 +1,37 @@
+Window,Target,Model,Holdout R2 (2024/25 remainder),R2 95% bootstrap CI,Holdout MAE,MAE 95% bootstrap CI,Holdout Spearman rho,Spearman 95% bootstrap CI,N train,N test
+First 5 matches,chance creation axis,Naive early-value baseline,-1.387,"[-6.442, -0.012]",3.619,"[2.488, 4.828]",0.582,"[0.107, 0.856]",32,16
+First 5 matches,chance creation axis,Ridge regression,-0.761,"[-2.297, -0.159]",3.013,"[2.071, 4.137]",0.597,"[0.102, 0.823]",32,16
+First 5 matches,chance creation axis,Random forest sensitivity,-0.478,"[-2.653, 0.183]",2.667,"[1.718, 3.818]",0.524,"[-0.012, 0.828]",32,16
+First 5 matches,finishing axis,Naive early-value baseline,-1.156,"[-4.107, 0.051]",1.79,"[1.139, 2.462]",0.444,"[-0.093, 0.801]",32,16
+First 5 matches,finishing axis,Ridge regression,-2.315,"[-6.029, -1.093]",2.463,"[1.793, 3.153]",0.582,"[0.054, 0.887]",32,16
+First 5 matches,finishing axis,Random forest sensitivity,-1.641,"[-4.640, -0.620]",2.151,"[1.486, 2.805]",0.274,"[-0.269, 0.732]",32,16
+First 5 matches,xg per match,Naive early-value baseline,-0.015,"[-2.250, 0.479]",0.335,"[0.191, 0.498]",0.788,"[0.452, 0.922]",32,16
+First 5 matches,xg per match,Ridge regression,0.316,"[-0.098, 0.834]",0.216,"[0.106, 0.388]",0.847,"[0.532, 0.956]",32,16
+First 5 matches,xg per match,Random forest sensitivity,0.379,"[-0.068, 0.684]",0.238,"[0.127, 0.386]",0.694,"[0.257, 0.907]",32,16
+First 5 matches,goals minus xg per match,Naive early-value baseline,-1.041,"[-3.512, -0.097]",0.245,"[0.171, 0.325]",0.326,"[-0.212, 0.734]",32,16
+First 5 matches,goals minus xg per match,Ridge regression,-3.505,"[-7.049, -2.242]",0.385,"[0.293, 0.485]",0.303,"[-0.247, 0.754]",32,16
+First 5 matches,goals minus xg per match,Random forest sensitivity,-3.537,"[-6.848, -2.361]",0.383,"[0.290, 0.488]",0.168,"[-0.430, 0.694]",32,16
+First 10 matches,chance creation axis,Naive early-value baseline,-0.103,"[-3.044, 0.588]",2.417,"[1.548, 3.314]",0.612,"[0.205, 0.839]",32,16
+First 10 matches,chance creation axis,Ridge regression,-0.54,"[-2.581, -0.011]",3.021,"[2.101, 3.944]",0.553,"[0.076, 0.841]",32,16
+First 10 matches,chance creation axis,Random forest sensitivity,-0.396,"[-2.503, 0.193]",2.93,"[2.126, 3.806]",0.653,"[0.239, 0.889]",32,16
+First 10 matches,finishing axis,Naive early-value baseline,-1.152,"[-5.819, 0.084]",1.877,"[1.366, 2.436]",0.594,"[0.211, 0.827]",32,16
+First 10 matches,finishing axis,Ridge regression,-1.04,"[-4.319, -0.120]",1.873,"[1.407, 2.348]",0.676,"[0.293, 0.888]",32,16
+First 10 matches,finishing axis,Random forest sensitivity,-1.669,"[-5.942, -0.370]",2.122,"[1.576, 2.704]",0.526,"[0.039, 0.801]",32,16
+First 10 matches,xg per match,Naive early-value baseline,0.377,"[-1.223, 0.679]",0.303,"[0.198, 0.410]",0.726,"[0.358, 0.911]",32,16
+First 10 matches,xg per match,Ridge regression,0.321,"[-0.095, 0.507]",0.282,"[0.168, 0.430]",0.6,"[0.161, 0.840]",32,16
+First 10 matches,xg per match,Random forest sensitivity,0.393,"[-0.178, 0.625]",0.269,"[0.164, 0.405]",0.682,"[0.274, 0.910]",32,16
+First 10 matches,goals minus xg per match,Naive early-value baseline,-0.961,"[-2.849, -0.338]",0.273,"[0.187, 0.371]",0.003,"[-0.540, 0.534]",32,16
+First 10 matches,goals minus xg per match,Ridge regression,-2.209,"[-4.815, -1.315]",0.356,"[0.246, 0.474]",0.356,"[-0.237, 0.839]",32,16
+First 10 matches,goals minus xg per match,Random forest sensitivity,-2.044,"[-4.380, -1.161]",0.331,"[0.219, 0.461]",-0.485,"[-0.872, 0.056]",32,16
+First 30% of season,chance creation axis,Naive early-value baseline,-0.205,"[-3.038, 0.590]",2.542,"[1.615, 3.577]",0.521,"[0.058, 0.804]",32,16
+First 30% of season,chance creation axis,Ridge regression,-0.537,"[-2.856, 0.125]",3.085,"[2.190, 3.991]",0.529,"[0.049, 0.809]",32,16
+First 30% of season,chance creation axis,Random forest sensitivity,-0.327,"[-2.082, 0.277]",2.71,"[1.774, 3.746]",0.488,"[0.001, 0.805]",32,16
+First 30% of season,finishing axis,Naive early-value baseline,-0.635,"[-4.491, 0.430]",1.465,"[0.951, 2.018]",0.75,"[0.427, 0.910]",32,16
+First 30% of season,finishing axis,Ridge regression,-0.762,"[-4.244, 0.122]",1.682,"[1.245, 2.131]",0.735,"[0.414, 0.902]",32,16
+First 30% of season,finishing axis,Random forest sensitivity,-1.096,"[-5.184, -0.019]",1.83,"[1.349, 2.328]",0.638,"[0.199, 0.898]",32,16
+First 30% of season,xg per match,Naive early-value baseline,0.429,"[-0.820, 0.693]",0.299,"[0.203, 0.405]",0.726,"[0.324, 0.911]",32,16
+First 30% of season,xg per match,Ridge regression,0.366,"[-0.065, 0.535]",0.276,"[0.159, 0.421]",0.629,"[0.204, 0.851]",32,16
+First 30% of season,xg per match,Random forest sensitivity,0.333,"[-0.351, 0.505]",0.302,"[0.195, 0.435]",0.715,"[0.352, 0.884]",32,16
+First 30% of season,goals minus xg per match,Naive early-value baseline,-0.874,"[-2.709, -0.281]",0.25,"[0.165, 0.348]",0.203,"[-0.313, 0.665]",32,16
+First 30% of season,goals minus xg per match,Ridge regression,-2.297,"[-5.046, -1.392]",0.347,"[0.240, 0.463]",0.329,"[-0.274, 0.804]",32,16
+First 30% of season,goals minus xg per match,Random forest sensitivity,-1.506,"[-3.468, -0.817]",0.278,"[0.176, 0.395]",-0.535,"[-0.870, -0.034]",32,16

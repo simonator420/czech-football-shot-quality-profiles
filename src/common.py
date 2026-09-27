@@ -26,7 +26,7 @@ warnings.filterwarnings(
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "outputs"
-DATA = Path(os.environ.get("FOOTBALL_PROCESSED_DIR", ROOT / "data" / "processed_release"))
+DATA = ROOT / "data" / "processed_release"
 TABLES = OUT / "tables"
 FIGURES = OUT / "figures"
 MODELS = OUT / "models"

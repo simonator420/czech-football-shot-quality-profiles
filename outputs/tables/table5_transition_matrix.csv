@@ -1,0 +1,4 @@
+From cluster,To cluster 0,To cluster 1,P(to 0),P(to 1)
+Cluster 0,5,1,0.833,0.167
+Cluster 1,0,24,0.0,1.0
+Summary,,,retention 0.967,Cramer's V 0.890

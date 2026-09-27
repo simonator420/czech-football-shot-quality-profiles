@@ -1,0 +1,69 @@
+Analysis,Variation,Metric,Value,Primary-analysis value,Note
+Shot-quality model,Primary specification,AUC (test season),0.7747,0.7747,
+Shot-quality model,Primary specification,Brier skill score,0.1461,0.1461,
+Shot-quality model,Excluding penalties,AUC (test season),0.7591,0.7747,"n = 7,033"
+Shot-quality model,Excluding penalties,Brier skill score,0.1065,0.1461,
+Shot-quality model,Excluding added-time shots,AUC (test season),0.7729,0.7747,"n = 6,456"
+Shot-quality model,Excluding added-time shots,Brier skill score,0.1425,0.1461,
+Shot-quality model,Excluding set-piece shots,AUC (test season),0.7561,0.7747,"n = 4,779"
+Shot-quality model,Excluding set-piece shots,Brier skill score,0.1116,0.1461,
+Shot-quality model,Open play only,AUC (test season),0.7561,0.7747,"n = 4,779"
+Shot-quality model,Open play only,Brier skill score,0.1116,0.1461,
+Shot-quality model,Metric-corrected distance/angle + visible goal angle,AUC (test season),0.7751,0.7747,Replaces the normalised proxies pre-specified in 5.2
+Shot-quality model,Excluding the `situation` predictor,AUC (test season),0.7751,0.7747,`situation` taxonomy changes at the 2024/25 boundary (step 1b)
+Shot-quality model,Excluding the `situation` predictor,Calibration intercept,-0.2755,-0.3199,
+Shot-quality model,Calibration in 2022/23,Calibration slope,1.0379,1.0,
+Shot-quality model,Calibration in 2022/23,Calibration intercept,0.1554,0.0,
+Shot-quality model,Calibration in 2022/23,Observed / predicted goals,1.1226,1.0,
+Shot-quality model,Calibration in 2023/24,Calibration slope,1.0597,1.0,
+Shot-quality model,Calibration in 2023/24,Calibration intercept,-0.0274,0.0,
+Shot-quality model,Calibration in 2023/24,Observed / predicted goals,0.9798,1.0,
+Shot-quality model,Calibration in 2024/25,Calibration slope,0.9823,1.0,
+Shot-quality model,Calibration in 2024/25,Calibration intercept,-0.2373,0.0,
+Shot-quality model,Calibration in 2024/25,Observed / predicted goals,0.8392,1.0,
+Shot-quality model,Train 2022/23 -> test 2023/24,AUC,0.7885,0.7747,
+Shot-quality model,Train 2023/24 -> test 2024/25,AUC,0.7776,0.7747,
+Clustering,All profile features (primary),Silhouette (k = 2),0.4176,0.4176,17 features
+Clustering,All profile features (primary),Minimum bootstrap Jaccard (k = 2),0.6003,0.6003,0.60 is the floor for a reportable cluster
+Clustering,Spatial features only,Silhouette (k = 2),0.3925,0.4176,6 features
+Clustering,Spatial features only,Minimum bootstrap Jaccard (k = 2),0.5381,0.6003,0.60 is the floor for a reportable cluster
+Clustering,Shot-quality features only,Silhouette (k = 2),0.5651,0.4176,8 features
+Clustering,Shot-quality features only,Minimum bootstrap Jaccard (k = 2),0.6207,0.6003,0.60 is the floor for a reportable cluster
+Clustering,Shot-selection features only,Silhouette (k = 2),0.206,0.4176,9 features
+Clustering,Shot-selection features only,Minimum bootstrap Jaccard (k = 2),0.4361,0.6003,0.60 is the floor for a reportable cluster
+Clustering,Profile + competitive-load response features,Silhouette (k = 2),0.4292,0.4176,19 features
+Clustering,Profile + competitive-load response features,Minimum bootstrap Jaccard (k = 2),0.6061,0.6003,0.60 is the floor for a reportable cluster
+Clustering,Within-season standardisation (primary),Minimum bootstrap Jaccard (k = 2),0.6003,0.6003,
+Clustering,Pooled standardisation,Minimum bootstrap Jaccard (k = 2),0.5426,0.6003,
+Profile construction,No-situation workflow,Team-seasons retained,48.0,48.0,OOF shot quality refit without `situation`; situation-derived profile features excluded below
+Profile construction,No-situation workflow,mean_shot_quality correlation,0.9932,1.0,Compared with the primary team-season profile values
+Profile construction,No-situation workflow,mean_shot_quality mean absolute difference,0.0014,0.0,
+Profile construction,No-situation workflow,xg_per_match correlation,0.9983,1.0,Compared with the primary team-season profile values
+Profile construction,No-situation workflow,xg_per_match mean absolute difference,0.0184,0.0,
+Profile construction,No-situation workflow,high_quality_share correlation,0.9805,1.0,Compared with the primary team-season profile values
+Profile construction,No-situation workflow,high_quality_share mean absolute difference,0.0082,0.0,
+Profile construction,No-situation workflow,Cluster adjusted Rand index,1.0,1.0,Primary and no-situation workflows both exclude situation-derived profile features
+Profile construction,No-situation workflow,Silhouette (k = 2),0.4854,0.4866,
+Profile construction,No-situation workflow,Minimum bootstrap Jaccard (k = 2),0.5908,0.6,0.60 is the floor for a reportable cluster
+Competitive load,Primary specification,Short-rest effect on logit shot quality,-0.0195,-0.0195,p = 0.500
+Competitive load,Alternative rest cut-points (<=4 / 5-7 / >=8 days),Short-rest effect on logit shot quality,0.0039,-0.0195,"n = 20,782, p = 0.827"
+Competitive load,League-only calendar,Short-rest effect on logit shot quality,0.0022,-0.0195,"n = 20,782, p = 0.954"
+Competitive load,Excluding post-break fixtures,Short-rest effect on logit shot quality,-0.0195,-0.0195,"n = 19,585, p = 0.501"
+Competitive load,Excluding penalties,Short-rest effect on logit shot quality,-0.0212,-0.0195,"n = 20,564, p = 0.430"
+Competitive load,Open play only,Short-rest effect on logit shot quality,-0.0172,-0.0195,"n = 14,750, p = 0.599"
+Competitive load,European participants only,Short-rest effect on logit shot quality,-0.0816,-0.0195,"n = 6,760, p = 0.107"
+Competitive load,Non-European participants only,Short-rest effect on logit shot quality,0.0115,-0.0195,"n = 14,022, p = 0.745"
+Competitive load,Adjusting for cup and European exposure,Short-rest effect on logit shot quality,0.0085,-0.0195,p = 0.787
+Competitive load,Team and opponent fixed effects (cluster-robust SE),Short-rest effect on logit shot quality,-0.0262,-0.0195,p = 0.392
+Competitive load,No team identifiers,Short-rest effect on logit shot quality,-0.0177,-0.0195,p = 0.565
+Competitive load,Season 2022/23 only,Short-rest effect on logit shot quality,-0.1786,-0.0195,p = 0.005
+Competitive load,Season 2023/24 only,Short-rest effect on logit shot quality,0.0335,-0.0195,p = 0.479
+Competitive load,Season 2024/25 only,Short-rest effect on logit shot quality,0.0057,-0.0195,p = 0.901
+Player profiles,Minimum 25 shots per player-season,Player-seasons retained,303.0,303.0,
+Player profiles,Minimum 25 shots per player-season,SD of finishing over expectation,2.1438,,Reported as threshold sensitivity; retained-player composition changes with the cutoff
+Player profiles,Minimum 30 shots per player-season,Player-seasons retained,234.0,303.0,
+Player profiles,Minimum 30 shots per player-season,SD of finishing over expectation,2.3138,,Reported as threshold sensitivity; retained-player composition changes with the cutoff
+Player profiles,Minimum 40 shots per player-season,Player-seasons retained,124.0,303.0,
+Player profiles,Minimum 40 shots per player-season,SD of finishing over expectation,2.589,,Reported as threshold sensitivity; retained-player composition changes with the cutoff
+Player profiles,Minimum 50 shots per player-season,Player-seasons retained,70.0,303.0,
+Player profiles,Minimum 50 shots per player-season,SD of finishing over expectation,2.8765,,Reported as threshold sensitivity; retained-player composition changes with the cutoff

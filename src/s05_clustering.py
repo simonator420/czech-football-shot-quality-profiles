@@ -556,49 +556,31 @@ def main() -> None:
 
 def make_profile_space_figure(ts, S, names, k, evr) -> None:
     import matplotlib.pyplot as plt
-    import umap
 
-    fig, axes = plt.subplots(
-        1, 2, figsize=(plotstyle.W_DOUBLE, 3.35),
-        gridspec_kw={"width_ratios": [1.08, 1.0], "wspace": 0.26},
-    )
-
-    ax = axes[0]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.35, 3.8))
     x = ts["chance_creation_axis"].to_numpy()
     y = ts["finishing_axis"].to_numpy()
     ax.axhline(0, color=plotstyle.GRID, lw=0.9, zorder=1)
     ax.axvline(0, color=plotstyle.GRID, lw=0.9, zorder=1)
-    for c in range(k):
-        m = ts["cluster"].to_numpy() == c
-        ax.scatter(x[m], y[m], s=30, color=plotstyle.CATEGORICAL[c],
-                   marker=plotstyle.MARKERS[c], edgecolor="white", linewidth=0.6,
-                   alpha=0.94, label=names[c], zorder=3)
+    for i, season in enumerate(sorted(ts["season_name"].unique())):
+        m = ts["season_name"].to_numpy() == season
+        ax.scatter(x[m], y[m], s=32, color=plotstyle.CATEGORICAL[i],
+                   marker="o", edgecolor="white", linewidth=0.6,
+                   alpha=0.92, label=season, zorder=3)
     ax.margins(x=0.08, y=0.08)
-    ax.set_xlabel(f"Chance-creation axis (PC1, {evr[0]:.0%} of variance)")
-    ax.set_ylabel(f"Finishing axis (PC2, {evr[1]:.0%})")
-    ax.set_title("a) Profile axes", loc="left", x=0.0)
+    ax.set_xlabel(f"PC1 - Chance creation ({evr[0] * 100:.1f}% variance explained)", labelpad=7)
+    ax.set_ylabel(
+        f"PC2 - Finishing and shot outcome ({evr[1] * 100:.1f}% variance explained)",
+        labelpad=8,
+    )
+    ax.set_title("Continuous team-season attacking-profile space", loc="center", pad=8)
     ax.grid(axis="both")
-
-    ax = axes[1]
-    emb = umap.UMAP(n_neighbors=8, min_dist=0.35, n_components=2,
-                    random_state=RANDOM_STATE).fit_transform(S)
-    for c in range(k):
-        m = ts["cluster"].to_numpy() == c
-        ax.scatter(emb[m, 0], emb[m, 1], s=30, color=plotstyle.CATEGORICAL[c],
-                   marker=plotstyle.MARKERS[c], edgecolor="white", linewidth=0.6,
-                   alpha=0.94, zorder=3)
-    ax.set_xlabel("UMAP 1")
-    ax.set_ylabel("UMAP 2")
-    ax.set_title("b) UMAP projection", loc="left", x=0.0)
-    ax.grid(False)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.tick_params(bottom=False, left=False)
-
-    handles, labels_ = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels_, loc="lower center", ncol=min(k, 3),
-               bbox_to_anchor=(0.5, 0.035), frameon=False)
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.30, wspace=0.26)
+    handles, labels_ = ax.get_legend_handles_labels()
+    ax.legend(
+        handles, labels_, loc="upper center", bbox_to_anchor=(0.5, -0.20),
+        ncol=3, frameon=False, borderaxespad=0.0,
+    )
+    fig.subplots_adjust(left=0.16, right=0.98, bottom=0.27, top=0.86)
     plotstyle.save(fig, "figure4_profile_space")
 
 
@@ -606,41 +588,45 @@ def make_radar_figure(centroids_z, names, k) -> None:
     import matplotlib.pyplot as plt
 
     feats = [f for f in RADAR_FEATURES if f in centroids_z.columns]
-    ncols = min(k, 3)
-    nrows = int(np.ceil(k / ncols))
-    fig, axes = plt.subplots(nrows, ncols, figsize=(plotstyle.W_DOUBLE, 3.2 * nrows),
-                             subplot_kw={"projection": "polar"})
-    axes = np.atleast_1d(axes).ravel()
-
-    ang = np.linspace(0, 2 * np.pi, len(feats), endpoint=False)
-    ang_c = np.concatenate([ang, ang[:1]])
-    lim = float(np.abs(centroids_z[feats].to_numpy()).max()) * 1.3
     pretty = [f.replace("_", " ").replace("mean ", "") for f in feats]
+    lim = float(np.abs(centroids_z[feats].to_numpy()).max()) * 1.15
+
+    def draw_centroid(ax, vals, color, title):
+        order = np.argsort(vals)
+        ypos = np.arange(len(feats))
+        ordered_vals = vals[order]
+        colors = [color if v >= 0 else plotstyle.INK_MUTED for v in ordered_vals]
+        ax.barh(ypos, ordered_vals, color=colors, height=0.68, edgecolor="white", linewidth=0.5)
+        ax.axvline(0, color=plotstyle.INK_MUTED, lw=0.9)
+        ax.set_yticks(ypos)
+        ax.set_yticklabels([pretty[i] for i in order], fontsize=7.4)
+        ax.set_xlim(-lim, lim)
+        ax.set_xlabel("Standardised centroid value (SD from league mean)")
+        ax.set_title(title, loc="center")
+        ax.grid(axis="x")
+        ax.grid(axis="y", visible=False)
+        for y_i, v in enumerate(ordered_vals):
+            ha = "left" if v >= 0 else "right"
+            dx = 0.03 * lim if v >= 0 else -0.03 * lim
+            ax.text(v + dx, y_i, f"{v:+.1f}", va="center", ha=ha, fontsize=6.7, color=plotstyle.INK_MUTED)
 
     for c in range(k):
-        ax = axes[c]
         vals = centroids_z.loc[c, feats].to_numpy(dtype=float)
-        vc = np.concatenate([vals, vals[:1]])
-        ax.plot(ang_c, vc, color=plotstyle.CATEGORICAL[c], lw=1.8, zorder=3)
-        ax.fill(ang_c, vc, color=plotstyle.CATEGORICAL[c], alpha=0.20, zorder=2)
-        ax.plot(ang_c, np.zeros_like(ang_c), color=plotstyle.INK_MUTED, lw=0.8,
-                ls=(0, (3, 3)), zorder=1)
-        ax.set_xticks(ang)
-        ax.set_xticklabels(pretty, fontsize=6.0)
-        ax.set_ylim(-lim, lim)
-        ax.set_yticks([-1, 0, 1])
-        ax.set_yticklabels(["-1 SD", "mean", "+1 SD"], fontsize=5.8,
-                           color=plotstyle.INK_MUTED)
-        ax.set_title(names[c], fontsize=8, pad=14)
-        ax.grid(color=plotstyle.GRID, lw=0.5)
-        ax.spines["polar"].set_color(plotstyle.GRID)
+        fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.55, 0.31 * len(feats) + 1.35))
+        draw_centroid(ax, vals, plotstyle.CATEGORICAL[c], f"Cluster centroid: {names[c]}")
+        fig.tight_layout()
+        name = f"figure5_cluster_centroid_{c + 1}"
+        plotstyle.save(fig, name)
 
-    for j in range(k, len(axes)):
-        axes[j].axis("off")
-    fig.suptitle("Cluster centroids, standardised against the league mean",
-                 fontsize=9, fontweight="bold", y=1.0)
-    fig.tight_layout()
-    plotstyle.save(fig, "figure5_cluster_radar")
+    fig, axes = plt.subplots(1, k, figsize=(plotstyle.W_DOUBLE, 0.31 * len(feats) + 1.65), sharex=True)
+    axes = np.atleast_1d(axes).ravel()
+    for c in range(k):
+        vals = centroids_z.loc[c, feats].to_numpy(dtype=float)
+        draw_centroid(axes[c], vals, plotstyle.CATEGORICAL[c], names[c])
+        if c > 0:
+            axes[c].set_ylabel("")
+    fig.subplots_adjust(left=0.11, right=0.99, bottom=0.15, top=0.88, wspace=0.38)
+    plotstyle.save(fig, "figure5_cluster_centroids_combined")
 
 
 if __name__ == "__main__":

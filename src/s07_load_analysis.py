@@ -251,9 +251,7 @@ def _mean_ci(x: np.ndarray):
 def make_rest_figure(d: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(plotstyle.W_DOUBLE, 3.0))
-
-    ax = axes[0]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.3, 3.35))
     cats = ["short", "normal", "weekly", "extended", "post_break"]
     labels = ["<=3 d", "4-6 d", "7-8 d", "9-14 d", ">14 d\n(break)"]
     present = [(c, l) for c, l in zip(cats, labels) if (d["rest_category_detailed"] == c).any()]
@@ -265,12 +263,15 @@ def make_rest_figure(d: pd.DataFrame) -> None:
     ax.errorbar(xs, ms, yerr=[np.array(ms) - los, np.array(his) - ms],
                 fmt="o", color=plotstyle.CATEGORICAL[0], markersize=5,
                 capsize=3, elinewidth=1.1, markeredgecolor="white", markeredgewidth=0.6)
-    ax.axhline(d["shot_quality"].mean(), color=plotstyle.INK_MUTED, lw=0.9, ls=(0, (4, 3)))
+    ax.axhline(
+        d["shot_quality"].mean(), color=plotstyle.INK_MUTED, lw=0.9,
+        ls=(0, (4, 3)), label="League mean",
+    )
     ax.set_xticks(xs)
     ax.set_xticklabels([l for _, l in present])
     ax.set_xlabel("Days since previous fixture (all competitions)")
     ax.set_ylabel("Mean shot quality")
-    ax.set_title("a  Shot quality by rest interval", loc="left")
+    ax.set_title("Shot quality by rest interval", loc="center")
     # Sample sizes sit on a reserved strip below the data so they never collide
     # with the intervals.
     lo_lim = min(los) - (max(his) - min(los)) * 0.28
@@ -278,36 +279,45 @@ def make_rest_figure(d: pd.DataFrame) -> None:
     for x, n in zip(xs, ns):
         ax.annotate(f"n={n:,}", (x, lo_lim), textcoords="offset points", xytext=(0, 4),
                     ha="center", va="bottom", fontsize=6, color=plotstyle.INK_MUTED)
-    ax.text(0.98, 0.955, "dashed line = league mean", transform=ax.transAxes,
-            ha="right", va="top", fontsize=6.5, color=plotstyle.INK_MUTED)
+    ax.legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.24),
+        ncol=1, fontsize=6.5, frameon=False, borderaxespad=0.0,
+    )
+    fig.tight_layout(rect=(0, 0.20, 1, 1))
+    plotstyle.save(fig, "figure7_shot_quality_by_rest")
 
-    ax = axes[1]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.3, 3.35))
     grp = d.groupby("matches_last_14")["shot_quality"]
     xs = sorted(g for g in grp.groups if grp.get_group(g).size >= 40)
     ms, los, his = zip(*[_mean_ci(grp.get_group(g)) for g in xs])
     ax.errorbar(xs, ms, yerr=[np.array(ms) - np.array(los), np.array(his) - np.array(ms)],
                 fmt="s", color=plotstyle.CATEGORICAL[1], markersize=5,
                 capsize=3, elinewidth=1.1, markeredgecolor="white", markeredgewidth=0.6)
-    ax.axhline(d["shot_quality"].mean(), color=plotstyle.INK_MUTED, lw=0.9, ls=(0, (4, 3)))
+    ax.axhline(
+        d["shot_quality"].mean(), color=plotstyle.INK_MUTED, lw=0.9,
+        ls=(0, (4, 3)), label="League mean",
+    )
     ax.set_xlabel("Matches played in the previous 14 days")
     ax.set_ylabel("Mean shot quality")
-    ax.set_title("b  Shot quality by fixture congestion", loc="left")
+    ax.set_title("Shot quality by fixture congestion", loc="center")
     ax.set_xticks(xs)
-
-    plotstyle.save(fig, "figure7_shot_quality_by_rest")
+    ax.legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.24),
+        ncol=1, fontsize=6.5, frameon=False, borderaxespad=0.0,
+    )
+    fig.tight_layout(rect=(0, 0.20, 1, 1))
+    plotstyle.save(fig, "figure7_fixture_congestion")
 
 
 def make_late_game_figure(d: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
-
-    fig, axes = plt.subplots(1, 2, figsize=(plotstyle.W_DOUBLE, 3.0))
 
     bins = [0, 15, 30, 45, 60, 75, 90, 200]
     labels = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90", "90+"]
     d = d.copy()
     d["minute_bin"] = pd.cut(d["minute"], bins=bins, labels=labels, right=True)
 
-    ax = axes[0]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.3, 3.35))
     xs, ms, los, his = [], [], [], []
     for i, lab in enumerate(labels):
         sub = d[d["minute_bin"] == lab]["shot_quality"]
@@ -322,9 +332,11 @@ def make_late_game_figure(d: pd.DataFrame) -> None:
     ax.set_xticklabels([labels[i] for i in xs])
     ax.set_xlabel("Match minute")
     ax.set_ylabel("Mean shot quality")
-    ax.set_title("a  Shot quality across the match", loc="left")
+    ax.set_title("Shot quality across the match", loc="center")
+    fig.tight_layout()
+    plotstyle.save(fig, "figure8_late_game_trends")
 
-    ax = axes[1]
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.55, 3.65))
     for j, (cat, lab) in enumerate((("short", "Short rest (<=3 d)"),
                                     ("normal", "Normal rest (4-6 d)"),
                                     ("long", "Long rest (>=7 d)"))):
@@ -341,10 +353,14 @@ def make_late_game_figure(d: pd.DataFrame) -> None:
     ax.set_xticklabels(labels)
     ax.set_xlabel("Match minute")
     ax.set_ylabel("Mean shot quality")
-    ax.set_title("b  Late-game trend by rest category", loc="left")
-    ax.legend(loc="upper left", fontsize=6.5)
-
-    plotstyle.save(fig, "figure8_late_game_trends")
+    ax.set_title("Late-game trend by rest category", loc="center")
+    ax.legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.24),
+        ncol=3, fontsize=6.5, frameon=False, borderaxespad=0.0,
+        columnspacing=1.1, handlelength=1.8,
+    )
+    fig.tight_layout(rect=(0, 0.22, 1, 1))
+    plotstyle.save(fig, "figure8_late_game_by_rest_category")
 
 
 def make_resilience_figure(tm: pd.DataFrame, d: pd.DataFrame) -> None:
@@ -374,7 +390,7 @@ def make_resilience_figure(tm: pd.DataFrame, d: pd.DataFrame) -> None:
         print("  [fig  ] figure9 skipped - no team met the short-rest sample threshold")
         return
 
-    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.5, 0.22 * len(res) + 1.5))
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.58, 0.22 * len(res) + 1.95))
     ypos = np.arange(len(res))
     colors = [
         plotstyle.CATEGORICAL[1] if hi < 0 else
@@ -395,17 +411,18 @@ def make_resilience_figure(tm: pd.DataFrame, d: pd.DataFrame) -> None:
     ax.set_yticklabels([f"{t}  (n={n})" for t, n in zip(res["Team"], res["n_short"])],
                        fontsize=6.5)
     ax.set_xlabel("Change in mean shot quality under short rest (<=3 days)")
-    ax.set_title("Team resilience of shot quality under fixture congestion", loc="left")
+    ax.set_title("Team resilience of shot quality under fixture congestion", loc="center")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     n_sig = int(sum(1 for lo, hi in zip(res["lo"], res["hi"]) if lo > 0 or hi < 0))
-    ax.text(
-        0.99, 0.02,
+    fig.text(
+        0.52, 0.04,
         "coloured where the 95% bootstrap interval excludes zero\n"
         f"({n_sig} of {len(res)} teams; about {0.05 * len(res):.1f} expected by chance, "
         "intervals are unadjusted)",
-        transform=ax.transAxes, ha="right", fontsize=6.2, color=plotstyle.INK_MUTED,
+        ha="center", fontsize=6.2, color=plotstyle.INK_MUTED,
     )
+    fig.tight_layout(rect=(0, 0.15, 1, 1))
     plotstyle.save(fig, "figure9_team_resilience")
     save_table(res.round(4), "table6d_team_resilience")
 

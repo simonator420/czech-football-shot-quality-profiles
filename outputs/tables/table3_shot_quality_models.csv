@@ -1,0 +1,8 @@
+Model,N shots,AUC,PR-AUC,Log loss,Brier score,Brier skill score,Calibration slope,Calibration intercept,ECE,Main model
+Model 0: overall goal-rate baseline,7102,,,0.3279,0.0909,0.0,,,0.0084,
+Model 1: spatial logistic regression,7102,0.7327,0.2774,0.2985,0.0845,0.0712,0.9655,-0.2338,0.0233,
+Model 2: contextual logistic regression,7102,0.7717,0.3583,0.2804,0.0787,0.1351,0.9582,-0.2962,0.0277,
+Regularised logistic regression (C=1.0),7102,0.772,0.379,0.2788,0.0782,0.14,0.9388,-0.3229,0.0281,
+"Random forest (depth=8,leaf=20)",7102,0.7701,0.3675,0.2777,0.0776,0.1465,1.0624,-0.2791,0.0241,
+"XGBoost (depth=3,mcw=5)",7102,0.7753,0.3815,0.2769,0.0778,0.145,1.0143,-0.3281,0.0282,
+"CatBoost (depth=4,l2=10)",7102,0.7747,0.383,0.2764,0.0777,0.1461,0.9805,-0.3199,0.0269,yes

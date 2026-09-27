@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software or its derived data, please cite this repository."
+type: software
+title: "Czech Football Shot-Quality Profiles"
+abstract: >-
+  Reproducibility package for temporally validated shot-quality modelling and
+  longitudinal attacking-profile analysis in the Czech First League.
+authors:
+  - family-names: "Salaj"
+    given-names: "Šimon"
+repository-code: "https://github.com/simonator420/czech-football-shot-quality-profiles"
+license: MIT
+keywords:
+  - football analytics
+  - expected goals
+  - machine learning
+  - reproducibility
+  - performance profiling

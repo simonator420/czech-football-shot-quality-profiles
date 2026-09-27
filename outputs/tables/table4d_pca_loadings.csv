@@ -1,0 +1,18 @@
+Feature,PC1 chance creation (42.9%),PC2 finishing (16.5%),PC3 chance source (11.1%)
+mean_shot_quality,0.348,0.017,0.011
+median_shot_quality,0.336,-0.058,-0.075
+xg_per_match,0.333,0.015,-0.147
+goals_minus_xg_per_match,0.124,0.352,0.341
+mean_distance_m,-0.311,0.251,-0.069
+mean_angle_proxy,0.075,0.26,0.3
+high_quality_share,0.34,0.026,-0.066
+low_quality_share,-0.33,0.103,0.028
+shots_per_match,0.271,0.025,-0.231
+on_target_rate,0.211,0.358,0.214
+blocked_rate,-0.14,-0.082,-0.035
+goal_rate,0.294,0.256,0.217
+header_share,0.131,-0.45,-0.002
+assisted_share,0.041,0.341,-0.52
+set_piece_share,-0.006,-0.318,0.552
+close_range_share,0.251,-0.325,-0.095
+fast_break_share,0.084,0.055,0.157

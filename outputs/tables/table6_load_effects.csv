@@ -1,0 +1,25 @@
+Exposure,Outcome,Family,Estimate,CI low,CI high,p,N,Model,Scale,q (BH-FDR)
+Short rest (<= 3 days vs >= 4),Shot quality (logit),primary,-0.0195,-0.0761,0.0372,0.5003,20782,LMM (team random intercept),units of outcome,
+Short rest (<= 3 days vs >= 4),Shot distance (m),secondary,0.0838,-0.3717,0.5393,0.7184,20782,LMM (team random intercept),units of outcome,0.8875
+Short rest (<= 3 days vs >= 4),Shot angle proxy (rad),secondary,-0.0051,-0.0254,0.0151,0.6185,20782,LMM (team random intercept),units of outcome,0.866
+Short rest (<= 3 days vs >= 4),Shot on target,secondary,0.9898,0.88,1.1132,0.8637,20782,GEE logistic (clustered on match),odds ratio,0.916
+Short rest (<= 3 days vs >= 4),Shot blocked,secondary,0.9734,0.8465,1.1194,0.7057,20782,GEE logistic (clustered on match),odds ratio,0.8875
+Short rest (<= 3 days vs >= 4),Goal,secondary,0.9506,0.7831,1.154,0.6085,20782,GEE logistic (clustered on match),odds ratio,0.866
+Short rest (<= 3 days vs >= 4),High-quality shot (SQ >= 0.15),secondary,0.9276,0.7872,1.0929,0.3689,20782,GEE logistic (clustered on match),odds ratio,0.7042
+Short rest (<= 3 days vs >= 4),Low-quality shot (SQ < 0.05),secondary,1.0077,0.8899,1.1412,0.9036,20782,GEE logistic (clustered on match),odds ratio,0.916
+Matches in previous 14 days (per match),Shot quality (logit),primary,0.0005,-0.0177,0.0187,0.956,20782,LMM (team random intercept),units of outcome,
+Matches in previous 14 days (per match),Shot distance (m),secondary,0.1394,-0.0067,0.2856,0.0615,20782,LMM (team random intercept),units of outcome,0.2584
+Matches in previous 14 days (per match),Shot angle proxy (rad),secondary,-0.0032,-0.0095,0.0032,0.3329,20782,LMM (team random intercept),units of outcome,0.7042
+Matches in previous 14 days (per match),Shot on target,secondary,1.0026,0.9677,1.0387,0.8872,20782,GEE logistic (clustered on match),odds ratio,0.916
+Matches in previous 14 days (per match),Shot blocked,secondary,0.9871,0.9467,1.0293,0.544,20782,GEE logistic (clustered on match),odds ratio,0.866
+Matches in previous 14 days (per match),Goal,secondary,1.0789,1.0188,1.1425,0.0094,20782,GEE logistic (clustered on match),odds ratio,0.0656
+Matches in previous 14 days (per match),High-quality shot (SQ >= 0.15),secondary,1.0759,1.0219,1.1327,0.0053,20782,GEE logistic (clustered on match),odds ratio,0.0561
+Matches in previous 14 days (per match),Low-quality shot (SQ < 0.05),secondary,0.9706,0.9313,1.0115,0.1564,20782,GEE logistic (clustered on match),odds ratio,0.4737
+"Days since previous fixture (per day, capped at 14)",Shot quality (logit),primary,0.0052,-0.0008,0.0111,0.0907,20782,LMM (team random intercept),units of outcome,
+"Days since previous fixture (per day, capped at 14)",Shot distance (m),secondary,-0.077,-0.1251,-0.029,0.0017,20782,LMM (team random intercept),units of outcome,0.0352
+"Days since previous fixture (per day, capped at 14)",Shot angle proxy (rad),secondary,0.0015,-0.0006,0.0036,0.1579,20782,LMM (team random intercept),units of outcome,0.4737
+"Days since previous fixture (per day, capped at 14)",Shot on target,secondary,1.015,1.0027,1.0274,0.0166,20782,GEE logistic (clustered on match),odds ratio,0.0869
+"Days since previous fixture (per day, capped at 14)",Shot blocked,secondary,0.9925,0.9785,1.0068,0.3028,20782,GEE logistic (clustered on match),odds ratio,0.7042
+"Days since previous fixture (per day, capped at 14)",Goal,secondary,1.0011,0.9803,1.0224,0.916,20782,GEE logistic (clustered on match),odds ratio,0.916
+"Days since previous fixture (per day, capped at 14)",High-quality shot (SQ >= 0.15),secondary,0.9912,0.9727,1.0102,0.3627,20782,GEE logistic (clustered on match),odds ratio,0.7042
+"Days since previous fixture (per day, capped at 14)",Low-quality shot (SQ < 0.05),secondary,1.0057,0.9922,1.0195,0.4077,20782,GEE logistic (clustered on match),odds ratio,0.7135

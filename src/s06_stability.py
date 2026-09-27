@@ -337,11 +337,8 @@ def make_transition_figure(ts, tr, counts, probs, k, own, null, rep) -> None:
     from matplotlib.path import Path
     import matplotlib.patches as patches
 
-    fig = plt.figure(figsize=(plotstyle.W_DOUBLE, 5.6))
-    gs = fig.add_gridspec(2, 2, height_ratios=[1.05, 1.0], hspace=0.5, wspace=0.30)
-
-    # --- (a) Sankey-style transition ribbons ------------------------------
-    ax = fig.add_subplot(gs[0, 0])
+    # --- Sankey-style transition ribbons ----------------------------------
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.35, 3.6))
     seasons = list(dict.fromkeys(list(tr["from_season"]) + list(tr["to_season"])))
     x_pos = np.linspace(0, 1, len(seasons))
     bar_w = 0.035
@@ -413,17 +410,19 @@ def make_transition_figure(ts, tr, counts, probs, k, own, null, rep) -> None:
     ax.grid(False)
     for s in ("left", "bottom"):
         ax.spines[s].set_visible(False)
-    ax.set_title("a  Movement between profile clusters", loc="left")
+    ax.set_title("Movement between profile clusters", loc="center")
     ax.text(
         0.02, 1.02,
         f"same-cluster retention {np.trace(counts) / counts.sum():.0%}",
         transform=ax.transAxes, fontsize=6.5, color=plotstyle.INK_MUTED, va="bottom",
     )
+    fig.tight_layout()
+    plotstyle.save(fig, "figure6_profile_transitions")
 
-    # --- (b) continuous trajectories on the chance-creation axis ----------
+    # --- continuous trajectories on the chance-creation axis ---------------
     # With an 8-versus-40 partition, categorical retention is high almost by
     # construction, so the continuous axis carries the trajectory information.
-    ax = fig.add_subplot(gs[0, 1])
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.55, 3.8))
     xs = np.arange(len(seasons))
     for team_id, g in ts.sort_values("season_name").groupby("team_id"):
         if len(g) < 2:
@@ -443,11 +442,13 @@ def make_transition_figure(ts, tr, counts, probs, k, own, null, rep) -> None:
     ax.set_xticklabels(seasons)
     ax.set_xlim(-0.15, len(seasons) - 1 + 1.35)
     ax.set_ylabel("Chance-creation axis")
-    ax.set_title("b  Team trajectories on the chance-creation axis", loc="left")
+    ax.set_title("Team trajectories on the chance-creation axis", loc="center")
     ax.grid(axis="y")
+    fig.tight_layout()
+    plotstyle.save(fig, "figure6_team_trajectories")
 
-    # --- (c) own vs null profile distance ---------------------------------
-    ax = fig.add_subplot(gs[1, 0])
+    # --- own vs null profile distance -------------------------------------
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.45, 3.65))
     bins = np.linspace(0, max(null.max(), own.max()), 34)
     ax.hist(null, bins=bins, density=True, color=plotstyle.INK_MUTED, alpha=0.35,
             label="Different teams (null)", edgecolor="white", linewidth=0.3)
@@ -457,11 +458,17 @@ def make_transition_figure(ts, tr, counts, probs, k, own, null, rep) -> None:
     ax.axvline(null.mean(), color=plotstyle.INK_MUTED, lw=1.4, ls=(0, (4, 3)))
     ax.set_xlabel("Euclidean distance between standardised profile vectors")
     ax.set_ylabel("Density")
-    ax.set_title("c  Profile persistence", loc="left")
-    ax.legend(loc="upper right", fontsize=6.5)
+    ax.set_title("Profile persistence", loc="center")
+    ax.legend(
+        loc="upper center", bbox_to_anchor=(0.5, -0.26),
+        ncol=2, fontsize=6.5, frameon=False, borderaxespad=0.0,
+        columnspacing=1.4, handlelength=1.8,
+    )
+    fig.tight_layout(rect=(0, 0.24, 1, 1))
+    plotstyle.save(fig, "figure6_profile_persistence")
 
-    # --- (d) per-feature repeatability ------------------------------------
-    ax = fig.add_subplot(gs[1, 1])
+    # --- per-feature repeatability ----------------------------------------
+    fig, ax = plt.subplots(figsize=(plotstyle.W_SINGLE * 1.45, 3.9))
     rr = rep[rep["Feature"].isin(AXES + PROFILE_FEATURES)].copy()
     rr = rr.sort_values("Year-to-year r").tail(12)
     ypos = np.arange(len(rr))
@@ -475,11 +482,11 @@ def make_transition_figure(ts, tr, counts, probs, k, own, null, rep) -> None:
     ax.set_yticks(ypos)
     ax.set_yticklabels([f.replace("_", " ") for f in rr["Feature"]], fontsize=6.3)
     ax.set_xlabel("Year-to-year correlation")
-    ax.set_title("d  Repeatability by feature", loc="left")
+    ax.set_title("Repeatability by feature", loc="center")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
-
-    plotstyle.save(fig, "figure6_profile_transitions")
+    fig.tight_layout()
+    plotstyle.save(fig, "figure6_repeatability_by_feature")
 
 
 if __name__ == "__main__":

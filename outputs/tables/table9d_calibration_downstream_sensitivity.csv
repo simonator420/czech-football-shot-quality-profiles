@@ -1,0 +1,14 @@
+Feature,Metric,Original,Intercept-shift sensitivity
+chance_creation_axis,Year-to-year Pearson r,0.764,0.758
+chance_creation_axis,ICC (team),0.78,0.776
+chance_creation_axis,Split-half Pearson r,0.628,0.616
+goals_minus_xg_per_match,Year-to-year Pearson r,0.38,0.462
+goals_minus_xg_per_match,ICC (team),-0.243,0.001
+goals_minus_xg_per_match,Split-half Pearson r,0.452,0.445
+finishing_axis,Year-to-year Pearson r,0.232,0.273
+finishing_axis,ICC (team),0.205,0.254
+finishing_axis,Split-half Pearson r,0.552,0.576
+chance_creation_axis,Spearman original vs recalibrated score,1.0,0.9953
+finishing_axis,Spearman original vs recalibrated score,1.0,0.9846
+process_chance_creation_axis,Spearman with points_per_match,0.6662,0.664
+process_chance_creation_axis,Spearman with goal_difference_per_match,0.712,0.7005
