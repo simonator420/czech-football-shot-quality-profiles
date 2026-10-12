@@ -1,0 +1,11 @@
+feature,mean_abs_shap,relative_importance_pct
+distance_proxy,0.480083,31.482788
+body_part_head,0.196703,12.899325
+player_x,0.186925,12.258114
+centrality,0.092324,6.05439
+situation_fast_break,0.080357,5.269669
+lateral_offset,0.079516,5.214484
+score_diff_before,0.050615,3.319252
+situation_corner,0.048451,3.177339
+situation_penalty,0.047661,3.125504
+score_state_leading,0.036879,2.418427

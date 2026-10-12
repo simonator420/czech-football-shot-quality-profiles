@@ -1,0 +1,7 @@
+Axis,Outcome,Estimate adjusted for finishing axis and season,Cluster-robust SE,Cluster-robust p,Team-cluster bootstrap 95% CI,Team-cluster bootstrap p,Spearman rho (unadjusted),Model R2
+goal_independent_axis,points_per_match,0.2628,0.0414,< .001,"[0.141, 0.342]",0.001,0.4317,0.6556
+goal_independent_axis,goal_difference_per_match,0.4242,0.0655,< .001,"[0.251, 0.550]",< .001,0.4627,0.7057
+goal_independent_axis,nonpen_goal_difference_per_match,0.3859,0.0563,< .001,"[0.220, 0.489]",0.001,0.4611,0.6955
+goal_independent_robust_axis,points_per_match,0.2446,0.0423,< .001,"[0.126, 0.330]",0.001,0.4349,0.6396
+goal_independent_robust_axis,goal_difference_per_match,0.3925,0.0654,< .001,"[0.222, 0.525]",0.001,0.4721,0.6806
+goal_independent_robust_axis,nonpen_goal_difference_per_match,0.357,0.056,< .001,"[0.197, 0.468]",0.001,0.4788,0.6702

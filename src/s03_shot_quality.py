@@ -18,6 +18,7 @@ from the strict chronological hold-out, never from the out-of-fold values.
 Produces
     tables/table3_shot_quality_models.csv
     tables/table3b_shot_quality_by_season.csv
+    tables/tableS4_catboost_shap_importance.csv
     figures/figure2_calibration.pdf
     figures/figure3_shap_importance.pdf
     data/shots_scored.parquet
@@ -491,9 +492,19 @@ def make_shap_figure(pipe, X_test, family: str) -> None:
     plotstyle.save(fig, "figure3_shap_importance")
 
     np.save(MODELS / "shap_values_test.npy", sv)
-    pd.DataFrame({"feature": names, "mean_abs_shap": imp}).sort_values(
+    importance = pd.DataFrame({"feature": names, "mean_abs_shap": imp}).sort_values(
         "mean_abs_shap", ascending=False
-    ).to_csv(MODELS / "shap_importance.csv", index=False)
+    )
+    importance.to_csv(MODELS / "shap_importance.csv", index=False)
+
+    # Public, compact source table for Supplementary Table S4. Model artefacts
+    # remain excluded from the release, so the top-ten numerical result also
+    # needs to be written to the versioned tables directory.
+    top_ten = importance.head(10).copy()
+    top_ten["relative_importance_pct"] = (
+        100 * top_ten["mean_abs_shap"] / importance["mean_abs_shap"].sum()
+    )
+    save_table(top_ten.round(6), "tableS4_catboost_shap_importance")
 
 
 if __name__ == "__main__":

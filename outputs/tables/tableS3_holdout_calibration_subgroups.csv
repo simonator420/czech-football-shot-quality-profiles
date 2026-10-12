@@ -1,0 +1,6 @@
+Group,N shots,Observed goals,Predicted xG,O/E ratio,Calibration intercept
+All shots,7102,718.0,909.2,0.79,-0.32
+Home,3886,398.0,507.7,0.784,-0.331
+Away,3216,320.0,401.5,0.797,-0.306
+Strong teams (2023/24 rank 1-8),3933,418.0,518.6,0.806,-0.292
+Weak teams (2023/24 rank 9-15 + promoted),3169,300.0,390.6,0.768,-0.358

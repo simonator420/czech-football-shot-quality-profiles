@@ -1,0 +1,10 @@
+Outcome,Comparison with static opponent FE,N team-seasons,Spearman rank correlation,Mean absolute rank change,Maximum absolute rank change
+xg_per_match,Opponent-by-half FE,48,0.9853,0.4167,2.0
+xg_per_match,Lagged 5-match opponent defence,48,0.9637,0.75,4.0
+xg_per_match,Lagged 10-match opponent defence,48,0.9618,0.8333,4.0
+shots_per_match,Opponent-by-half FE,48,0.9961,0.1667,1.0
+shots_per_match,Lagged 5-match opponent defence,48,0.9735,0.6667,3.0
+shots_per_match,Lagged 10-match opponent defence,48,0.9794,0.5417,3.0
+mean_shot_quality,Opponent-by-half FE,48,0.9931,0.2917,1.0
+mean_shot_quality,Lagged 5-match opponent defence,48,0.9784,0.5,3.0
+mean_shot_quality,Lagged 10-match opponent defence,48,0.9804,0.5417,2.0

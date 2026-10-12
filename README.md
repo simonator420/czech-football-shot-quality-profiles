@@ -30,7 +30,11 @@ czech-football-shot-quality-profiles/
 │   ├── s10_figures_summary.py
 │   ├── s11_statistical_appendix.py
 │   ├── s12_core_validation.py
-│   └── s13_rebuild_manuscript_figures.py
+│   ├── s13_rebuild_manuscript_figures.py
+│   ├── s15_process_axis_reliability.py
+│   ├── s16_holdout_calibration_subgroups.py
+│   ├── s17_dynamic_opponent_adjustment.py
+│   └── s18_goal_independent_axis.py
 ├── manuscript/
 │   ├── Applied_Sciences_Manuscript.docx
 │   ├── Applied_Sciences_Manuscript.pdf
@@ -64,6 +68,10 @@ included in this repository without access to the original scraper database.
             src/s01b_data_continuity.py src/s04_profiles.py src/s05_clustering.py \
             src/s06_stability.py src/s07_load_analysis.py src/s08_prediction.py \
             src/s09_robustness.py src/s12_core_validation.py \
+            src/s15_process_axis_reliability.py \
+            src/s16_holdout_calibration_subgroups.py \
+            src/s17_dynamic_opponent_adjustment.py \
+            src/s18_goal_independent_axis.py \
             src/s10_figures_summary.py src/s11_statistical_appendix.py \
             src/s13_rebuild_manuscript_figures.py; do
        name="$(basename "$s" .py)"
@@ -77,7 +85,9 @@ The scripts cover feature engineering, shot-quality modelling, the provider
 taxonomy audit, team and player profile construction, clusterability tests,
 season-to-season stability, competitive-load models, non-overlapping
 early-season prediction, robustness checks, core validation analyses, final
-figure and summary generation, and the supplementary statistical appendix.
+figure and summary generation, process-axis reliability, holdout calibration
+subgroups, dynamic opponent-strength sensitivity, goal-independent shot-based
+axes, and the supplementary statistical appendix.
 
 Intermediate analytical frames are regenerated in `data/processed_release/`.
 Tables, figures, model artefacts, captured logs, `RESULTS_SUMMARY.md`, and

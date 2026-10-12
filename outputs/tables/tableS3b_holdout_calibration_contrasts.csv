@@ -1,0 +1,3 @@
+Comparison,O/E ratio difference,O/E ratio 95% bootstrap CI,Calibration intercept difference,Calibration intercept 95% bootstrap CI
+Home - Away,-0.013,"[-0.120, 0.083]",-0.025,"[-0.200, 0.137]"
+Strong - Weak,0.038,"[-0.062, 0.141]",0.066,"[-0.098, 0.242]"

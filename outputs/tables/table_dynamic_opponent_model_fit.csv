@@ -1,0 +1,13 @@
+Outcome,Specification,N team-matches,Adjusted R2,RMSE,AIC,Rolling opponent coefficient,Rolling opponent p-value
+xg_per_match,Static opponent FE,1652,0.32903,0.69704,3627.72546,,
+xg_per_match,Opponent-by-half FE,1652,0.35203,0.66838,3640.98348,,
+xg_per_match,Lagged 5-match opponent defence,1598,0.27861,0.73033,3630.53656,0.47489,0.0
+xg_per_match,Lagged 10-match opponent defence,1598,0.30513,0.71678,3570.68313,0.65108,0.0
+shots_per_match,Static opponent FE,1652,0.31813,4.32858,9661.32179,,
+shots_per_match,Opponent-by-half FE,1652,0.34686,4.13366,9661.08793,,
+shots_per_match,Lagged 5-match opponent defence,1598,0.26785,4.5253,9459.87965,0.51641,0.0
+shots_per_match,Lagged 10-match opponent defence,1598,0.29818,4.43056,9392.25762,0.67697,0.0
+mean_shot_quality,Static opponent FE,1652,0.09648,0.04321,-5559.70856,,
+mean_shot_quality,Opponent-by-half FE,1652,0.10809,0.04189,-5510.19454,,
+mean_shot_quality,Lagged 5-match opponent defence,1598,0.07133,0.04433,-5324.06885,0.13576,0.01094
+mean_shot_quality,Lagged 10-match opponent defence,1598,0.07861,0.04416,-5336.65123,0.30001,2e-05

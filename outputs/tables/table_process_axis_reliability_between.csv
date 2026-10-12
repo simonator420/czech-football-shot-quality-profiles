@@ -1,0 +1,2 @@
+Feature,Pairs,Year-to-year r,95% CI,p,"ICC(1,1)"
+process_chance_creation_axis,30,0.818,"[0.65, 0.91]",< .001,0.794

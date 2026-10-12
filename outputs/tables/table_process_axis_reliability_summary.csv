@@ -1,0 +1,3 @@
+Analysis,Pearson r,95% CI,p,"ICC(1,1)",Spearman rho,MAE,n
+Between-season,0.818,"[0.65, 0.91]",< .001,0.794,—,—,30
+Within-season,0.672,"[0.447, 0.807]",—,—,0.54,2.111,48
